@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GODS EYE // AUTHENTICATION</title>
+<link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+<div id="scanline"></div>
+<div id="vignette"></div>
+
+<div id="login-container">
+  <div id="login-bg-grid"></div>
+
+  <div id="login-box">
+    <div id="login-header">
+      <div id="login-icon">
+        <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="30" cy="30" r="28" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+          <circle cx="30" cy="30" r="20" stroke="currentColor" stroke-width="0.5" opacity="0.2"/>
+          <circle cx="30" cy="30" r="12" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <circle cx="30" cy="30" r="4" fill="currentColor" opacity="0.8"/>
+          <line x1="30" y1="2" x2="30" y2="18" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+          <line x1="30" y1="42" x2="30" y2="58" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+          <line x1="2" y1="30" x2="18" y2="30" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+          <line x1="42" y1="30" x2="58" y2="30" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+        </svg>
+      </div>
+      <h1>GODS<span> EYE</span></h1>
+      <p class="subtitle">WORLDVIEW OPERATIONS CENTER</p>
+      <div class="divider"></div>
+      <p class="access-label">// RESTRICTED ACCESS — AUTHENTICATION REQUIRED</p>
+    </div>
+
+    <div id="login-form">
+      <div class="field-group">
+        <label for="username">OPERATOR ID</label>
+        <input type="text" id="username" autocomplete="username" spellcheck="false"
+               placeholder="> ENTER OPERATOR ID..." autofocus>
+      </div>
+      <div class="field-group">
+        <label for="password">ACCESS CODE</label>
+        <input type="password" id="password" autocomplete="current-password"
+               placeholder="> ENTER ACCESS CODE...">
+      </div>
+      <div id="error-msg"></div>
+      <button id="login-btn" onclick="attemptLogin()">
+        <span class="btn-text">AUTHENTICATE</span>
+        <span class="btn-loading" style="display:none">VERIFYING...</span>
+      </button>
+    </div>
+
+    <div id="login-footer">
+      <div class="footer-line">
+        <span class="dot green"></span>
+        <span>SYSTEM STATUS: OPERATIONAL</span>
+      </div>
+      <div class="footer-line">
+        <span class="dot amber"></span>
+        <span id="login-utc">--:--:-- UTC</span>
+      </div>
+      <div class="footer-line dim">
+        GODS EYE v4.0 // CLASSIFICATION: PUBLIC DATA ONLY
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="src/config.js"></script>
+<script src="src/auth.js"></script>
+<script>
+// Check if already authenticated
+if (Auth.isAuthenticated()) {
+  window.location.href = 'app.html';
+}
+
+// UTC clock
+setInterval(() => {
+  const n = new Date();
+  const p = x => String(x).padStart(2, '0');
+  document.getElementById('login-utc').textContent =
+    `${p(n.getUTCHours())}:${p(n.getUTCMinutes())}:${p(n.getUTCSeconds())} UTC`;
+}, 1000);
+
+// Login handler
+async function attemptLogin() {
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('error-msg');
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+
+  if (!username || !password) {
+    errEl.textContent = '⚠ ALL FIELDS REQUIRED';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.querySelector('.btn-text').style.display = 'none';
+  btn.querySelector('.btn-loading').style.display = 'inline';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  // Simulate verification delay for realism
+  await new Promise(r => setTimeout(r, 800));
+
+  const result = await Auth.login(username, password);
+
+  if (result.success) {
+    errEl.style.display = 'none';
+    document.getElementById('login-box').style.borderColor = '#00ff41';
+    document.getElementById('login-box').style.boxShadow = '0 0 40px rgba(0,255,65,0.15)';
+    btn.querySelector('.btn-loading').textContent = 'ACCESS GRANTED';
+    btn.style.borderColor = '#00ff41';
+    btn.style.color = '#00ff41';
+    await new Promise(r => setTimeout(r, 600));
+    window.location.href = 'app.html';
+  } else {
+    btn.querySelector('.btn-text').style.display = 'inline';
+    btn.querySelector('.btn-loading').style.display = 'none';
+    btn.querySelector('.btn-loading').textContent = 'VERIFYING...';
+    btn.disabled = false;
+    errEl.textContent = result.error;
+    errEl.style.display = 'block';
+    document.getElementById('login-box').style.borderColor = '#ff2020';
+    setTimeout(() => {
+      document.getElementById('login-box').style.borderColor = '';
+    }, 1500);
+  }
+}
+
+// Enter key handler
+document.getElementById('password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') attemptLogin();
+});
+document.getElementById('username').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('password').focus();
+});
+</script>
+</body>
+</html>

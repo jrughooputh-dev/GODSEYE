@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GODS EYE // WORLDVIEW OPS</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="god-flash"></div>
+
+<div id="app">
+
+<header id="hdr">
+  <div class="htitle" id="main-title">GODS<em> EYE</em> // WORLDVIEW OPERATIONS CENTER</div>
+  <div class="hstatus">
+    <div class="hitem"><div class="dot" id="sdot"></div><span id="sstatus">INIT</span></div>
+    <div class="hitem"><div class="dot amber"></div><span id="scnt">-- SAT</span></div>
+    <div class="hitem"><div class="dot blue" id="adot"></div><span id="acnt">-- ACFT</span></div>
+    <button class="hdr-btn" id="clock-btn" onclick="GodClock.toggle()">⏱ CLOCK</button>
+    <button class="hdr-btn" id="radar-btn" onclick="UI.toggleRadar()">📡 RADAR</button>
+    <button class="hdr-btn" id="god-btn" onclick="UI.toggleGodView()">☠ GOD VIEW</button>
+    <button class="hdr-btn" id="logout-btn" onclick="Auth.logout()">LOGOUT</button>
+    <div id="utc">--:--:-- UTC</div>
+  </div>
+</header>
+
+<aside id="lp">
+  <div class="ph"><span id="panel-label">// TRACKED OBJECTS</span><span class="pc" id="lcount">0</span></div>
+  <div id="threat-bar">
+    <div class="threat-item"><span>THREATS</span><span class="threat-val" id="t-threats">0</span></div>
+    <div class="threat-item"><span>LEO</span><span class="threat-val" id="t-leo">0</span></div>
+    <div class="threat-item"><span>MEO</span><span class="threat-val" id="t-meo">0</span></div>
+    <div class="threat-item"><span>GEO</span><span class="threat-val" id="t-geo">0</span></div>
+  </div>
+  <div id="layers">
+    <div class="ltog sat on" id="tog-sat" onclick="UI.toggleLayer('sat')">SAT</div>
+    <div class="ltog air" id="tog-air" onclick="UI.toggleLayer('air')">ACFT</div>
+    <div class="ltog nvg" id="tog-nvg" onclick="UI.toggleLayer('nvg')">NVG</div>
+    <div class="ltog flir" id="tog-flir" onclick="UI.toggleLayer('flir')">FLIR</div>
+  </div>
+  <input id="search" type="text" placeholder="> SEARCH DESIGNATION..." autocomplete="off" spellcheck="false">
+  <div id="list"></div>
+
+  <div id="god-clock-overlay">
+    <div id="god-clock-hdr">
+      <span>⏱ GOD CLOCK // WORLD TIME</span>
+      <span id="god-clock-close" onclick="GodClock.toggle()">×</span>
+    </div>
+    <div id="god-clock-body"></div>
+  </div>
+</aside>
+
+<main id="gw">
+  <canvas id="gc"></canvas>
+  <div id="shader-overlay"></div>
+  <div id="god-overlay"></div>
+  <canvas id="targets-canvas"></canvas>
+  <div id="sweep"></div>
+  <div id="hud">
+    <div class="cbracket tl"></div><div class="cbracket tr"></div>
+    <div class="cbracket bl"></div><div class="cbracket br"></div>
+    <div id="reticle"></div>
+    <div class="glabel gl-tl" id="gl-tl">GLOBAL SURVEILLANCE NETWORK</div>
+    <div class="glabel gl-tr" id="zlabel">ZOOM: 1.0x</div>
+    <div class="glabel gl-bl" id="poslabel">LAT: -- LON: --</div>
+    <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK · OPENSKY</div>
+  </div>
+  <div id="loading">
+    <div id="ltitle">GODS EYE</div>
+    <div id="lbw"><div id="lb"></div></div>
+    <div id="lmsg">INITIALIZING SYSTEMS...</div>
+    <div id="lerr"></div>
+  </div>
+</main>
+
+<aside id="rp">
+  <div class="rph" id="rph-label">// OBJECT TELEMETRY</div>
+  <div id="dname"><span style="color:var(--gd);font-size:9px;letter-spacing:2px;">AWAITING TARGET LOCK</span></div>
+  <div id="dbody">
+    <div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK DOT ON GLOBE<br>&gt; DRAG TO ROTATE<br>&gt; SCROLL TO ZOOM</div>
+  </div>
+
+  <!-- RADAR PANEL — slides over right panel -->
+  <div id="radar-panel">
+    <div class="radar-hdr">
+      <span>📡 PROXIMITY RADAR // 50KM</span>
+      <span class="radar-close" onclick="UI.toggleRadar()">×</span>
+    </div>
+    <div class="radar-status-bar">
+      <span>STATUS: <span class="rs-active" id="radar-status">OFFLINE</span></span>
+      <span id="radar-count">0 CONTACTS</span>
+    </div>
+    <div class="radar-canvas-wrap">
+      <canvas id="radar-canvas" width="240" height="240"></canvas>
+    </div>
+    <div class="radar-coords">
+      <span>YOUR POS:</span>
+      <span id="radar-coords">---</span>
+    </div>
+    <div id="radar-list">
+      <div class="radar-empty">ACTIVATE RADAR TO SCAN</div>
+    </div>
+  </div>
+</aside>
+
+<footer id="ftr">
+  <span id="ftr-label">GODS EYE v4.0 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
+  <div class="fitems">
+    <span>CELESTRAK · OPENSKY</span>
+    <span id="lupdate">SYNC: --</span>
+    <span id="frtcount">RENDER: 0fps</span>
+  </div>
+</footer>
+
+</div>
+<div id="tip"></div>
+
+<!-- External deps -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+
+<!-- App modules (order matters) -->
+<script src="src/config.js"></script>
+<script src="src/auth.js"></script>
+<script src="src/utils.js"></script>
+<script src="src/globe.js"></script>
+<script src="src/satellites.js"></script>
+<script src="src/aircraft.js"></script>
+<script src="src/godclock.js"></script>
+<script src="src/radar.js"></script>
+<script src="src/ui.js"></script>
+
+<!-- App bootstrap -->
+<script>
+'use strict';
+
+// ── AUTH GATE ─────────────────────────────────────────────
+if (!Auth.isAuthenticated()) {
+  window.location.href = 'index.html';
+}
+
+// ── PROGRESS ──────────────────────────────────────────────
+function setProgress(pct, msg) {
+  document.getElementById('lb').style.width = pct + '%';
+  document.getElementById('lmsg').textContent = msg;
+}
+
+// ── INIT ──────────────────────────────────────────────────
+async function init() {
+  setProgress(5, 'ESTABLISHING UPLINK...');
+  Globe.init();
+  UI.initTargeting();
+  UI.initRaycast();
+
+  setProgress(10, 'CONNECTING TO CELESTRAK...');
+  const result = await Satellites.fetchAll((label, count, i, total) => {
+    setProgress(10 + ((i + 1) / total) * 55, `LOADED ${label} — ${count} OBJ`);
+  });
+
+  if (result.fallback) {
+    document.getElementById('lerr').style.display = 'block';
+    document.getElementById('lerr').textContent = 'CELESTRAK CORS RESTRICTED — USING BUILT-IN TLE DATASET';
+  }
+
+  Satellites.list = result.sats;
+  setProgress(70, `TRACKING ${Satellites.list.length} OBJECTS...`);
+  await new Promise(r => setTimeout(r, 150));
+
+  setProgress(80, 'LOADING EARTH TEXTURES...');
+  await new Promise(r => setTimeout(r, 800));
+
+  setProgress(90, 'COMPUTING ORBITAL POSITIONS...');
+  Satellites.buildMeshes(false);
+  Satellites.propagate(false);
+  UI.buildList();
+
+  document.getElementById('scnt').textContent = Satellites.list.length + ' SAT';
+  document.getElementById('sstatus').textContent = 'ONLINE';
+  document.getElementById('sdot').style.boxShadow = '0 0 8px #00ff41';
+  document.getElementById('lupdate').textContent = 'SYNC: ' + new Date().toUTCString().slice(17, 25) + ' UTC';
+
+  setProgress(100, 'ALL SYSTEMS NOMINAL');
+  await new Promise(r => setTimeout(r, 500));
+  document.getElementById('loading').style.display = 'none';
+  Globe.autoRot = true;
+}
+
+// ── CLOCK ─────────────────────────────────────────────────
+function tick() {
+  document.getElementById('utc').textContent = Utils.formatUTC();
+}
+
+// ── RENDER LOOP ───────────────────────────────────────────
+let lastFPS = 0, fpsCount = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  fpsCount++;
+  const now = performance.now();
+  if (now - lastFPS > 1000) {
+    document.getElementById('frtcount').textContent = 'RENDER: ' + fpsCount + 'fps';
+    fpsCount = 0; lastFPS = now;
+  }
+
+  Globe.render();
+
+  if (Globe.frame % CONFIG.satUpdateFrames === 0) {
+    Satellites.propagate(UI.godMode);
+    tick();
+    if (UI.selectedType === 'sat' && UI.selectedIdx !== null) {
+      UI.updateDetail();
+      Satellites.drawTrail(UI.selectedIdx, UI.godMode);
+    }
+    if (UI.selectedType === 'air' && UI.selectedIdx !== null) {
+      Aircraft.place();
+    }
+    if (UI.godMode) UI.updateThreatCounts();
+  }
+}
+
+// ── SEARCH ────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', e => UI.buildList(e.target.value));
+
+// ── AUTO-REFRESH ──────────────────────────────────────────
+setInterval(() => {
+  if (Aircraft.list.length > 0) {
+    Aircraft.fetch().then(ok => {
+      if (ok) { Aircraft.buildMeshes(UI.godMode); Aircraft.place(); }
+    });
+  }
+}, 60000);
+
+// ── LAUNCH ────────────────────────────────────────────────
+setInterval(tick, 1000);
+init();
+animate();
+</script>
+</body>
+</html>
