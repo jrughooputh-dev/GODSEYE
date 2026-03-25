@@ -1,16 +1,27 @@
 // ═══════════════════════════════════════════════════════════
-//  GODS EYE — CONFIG
-//  Central configuration for all modules
+//  GODS EYE — CONFIG (PUBLIC — SAFE TO COMMIT)
+//  Sensitive credentials live in src/config.local.js (gitignored)
+//  config.local.js is loaded BEFORE this file in app.html/index.html
 // ═══════════════════════════════════════════════════════════
 
+// Pull from local config if present, otherwise fail gracefully
+const _LOCAL = window.GODS_EYE_LOCAL || {};
+
 const CONFIG = {
-  version: '4.0.0',
+  version: '5.0.0',
   name: 'GODS EYE',
   subtitle: 'WORLDVIEW OPERATIONS CENTER',
 
   // ── API & DATA SOURCES ──────────────────────────────────
   proxy: 'https://corsproxy.io/?',
   opensky: 'https://opensky-network.org/api/states/all',
+
+  // AviationStack — flight route data for aircraft detail panel
+  // Key loaded from config.local.js (never committed to git)
+  aviationstack: {
+    base: 'https://api.aviationstack.com/v1/flights',
+    apiKey: (_LOCAL.aviationstack && _LOCAL.aviationstack.apiKey) || '',
+  },
 
   // NASA Earth textures (public domain, CDN-hosted)
   textures: {
@@ -34,65 +45,70 @@ const CONFIG = {
     { label: 'DEBRIS',   cat: 'debris',    url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=cosmos-1408-debris&FORMAT=tle' },
   ],
 
-  // ── SATELLITE CATEGORY COLORS ───────────────────────────
-  catColors: {
-    normal: { iss:0xffaa00, starlink:0x00ccff, weather:0x88ffaa, nav:0xffccaa, science:0xff88ff, iridium:0xaaaaff, aircraft:0x00bbff, debris:0x666666, other:0x00ff41 },
-    godview: { iss:0xff4400, starlink:0xff2200, weather:0xff6622, nav:0xff8844, science:0xff3311, iridium:0xff5500, aircraft:0xff0044, debris:0xff1111, other:0xff2020 },
+  // ── SATELLITE CATEGORY META ─────────────────────────────
+  catMeta: {
+    iss:      { icon: '🛰️',  label: 'ISS',    color: 0xffaa00, godColor: 0xff4400, purpose: 'Crewed Space Station',       cssClass: 'cs'  },
+    starlink: { icon: '📡',  label: 'STRLNK', color: 0x00ccff, godColor: 0xff2200, purpose: 'Communications (Starlink)',  cssClass: 'cst' },
+    weather:  { icon: '🌍',  label: 'WTHR',   color: 0x88ffaa, godColor: 0xff6622, purpose: 'Earth Observation / Weather',cssClass: 'cw'  },
+    nav:      { icon: '🧭',  label: 'NAV',    color: 0xffccaa, godColor: 0xff8844, purpose: 'Navigation / GPS',            cssClass: 'cn'  },
+    science:  { icon: '🔭',  label: 'SCI',    color: 0xff88ff, godColor: 0xff3311, purpose: 'Scientific Research',         cssClass: 'css' },
+    iridium:  { icon: '📡',  label: 'IRDM',   color: 0xaaaaff, godColor: 0xff5500, purpose: 'Communications (Iridium)',   cssClass: 'co'  },
+    debris:   { icon: '🗑️',  label: 'DBRS',   color: 0x555555, godColor: 0xff1111, purpose: 'Space Debris',                cssClass: 'cd'  },
+    other:    { icon: '🛰️',  label: 'OBJ',    color: 0x00ff41, godColor: 0xff2020, purpose: 'Other / Unclassified',        cssClass: 'co'  },
+    aircraft: { icon: '✈️',  label: 'ACFT',   color: 0x00bbff, godColor: 0xff0044, purpose: 'Aircraft',                   cssClass: 'ca'  },
   },
 
   // ── PERFORMANCE ─────────────────────────────────────────
   maxAircraft: 1000,
   maxTrailPoints: 80,
-  satUpdateFrames: 45,    // update every N frames
-  listRenderCap: 500,     // max list items rendered
+  satUpdateFrames: 45,
+  listRenderCap: 500,
 
   // ── RADAR ───────────────────────────────────────────────
   radar: {
     radiusKm: 50,
-    sweepDuration: 4000,  // ms per full rotation
+    sweepDuration: 4000,
     maxBlips: 200,
   },
 
   // ── TIMEZONES (GOD CLOCK) ──────────────────────────────
   timezones: [
-    { city: 'TORONTO',     tz: 'America/Toronto',     flag: '🇨🇦', personal: true },
-    { city: 'TBILISI',     tz: 'Asia/Tbilisi',        flag: '🇬🇪', personal: true },
-    { city: 'TALLINN',     tz: 'Europe/Tallinn',       flag: '🇪🇪', personal: true },
-    { city: 'NEW YORK',    tz: 'America/New_York',     flag: '🇺🇸' },
-    { city: 'LOS ANGELES', tz: 'America/Los_Angeles', flag: '🇺🇸' },
-    { city: 'CHICAGO',     tz: 'America/Chicago',      flag: '🇺🇸' },
-    { city: 'LONDON',      tz: 'Europe/London',        flag: '🇬🇧' },
-    { city: 'PARIS',       tz: 'Europe/Paris',         flag: '🇫🇷' },
-    { city: 'ISTANBUL',    tz: 'Europe/Istanbul',      flag: '🇹🇷' },
-    { city: 'CAIRO',       tz: 'Africa/Cairo',         flag: '🇪🇬' },
-    { city: 'NAIROBI',     tz: 'Africa/Nairobi',       flag: '🇰🇪' },
-    { city: 'MOSCOW',      tz: 'Europe/Moscow',        flag: '🇷🇺' },
-    { city: 'DUBAI',       tz: 'Asia/Dubai',           flag: '🇦🇪' },
-    { city: 'KARACHI',     tz: 'Asia/Karachi',         flag: '🇵🇰' },
-    { city: 'DELHI',       tz: 'Asia/Kolkata',         flag: '🇮🇳' },
-    { city: 'DHAKA',       tz: 'Asia/Dhaka',           flag: '🇧🇩' },
-    { city: 'BANGKOK',     tz: 'Asia/Bangkok',         flag: '🇹🇭' },
-    { city: 'BEIJING',     tz: 'Asia/Shanghai',        flag: '🇨🇳' },
-    { city: 'TOKYO',       tz: 'Asia/Tokyo',           flag: '🇯🇵' },
-    { city: 'SYDNEY',      tz: 'Australia/Sydney',     flag: '🇦🇺' },
-    { city: 'AUCKLAND',    tz: 'Pacific/Auckland',     flag: '🇳🇿' },
-    { city: 'SAO PAULO',   tz: 'America/Sao_Paulo',   flag: '🇧🇷' },
+    { city: 'TORONTO',     tz: 'America/Toronto',    flag: '🇨🇦', personal: true },
+    { city: 'TBILISI',     tz: 'Asia/Tbilisi',       flag: '🇬🇪', personal: true },
+    { city: 'TALLINN',     tz: 'Europe/Tallinn',      flag: '🇪🇪', personal: true },
+    { city: 'NEW YORK',    tz: 'America/New_York',    flag: '🇺🇸' },
+    { city: 'LOS ANGELES', tz: 'America/Los_Angeles',flag: '🇺🇸' },
+    { city: 'CHICAGO',     tz: 'America/Chicago',     flag: '🇺🇸' },
+    { city: 'LONDON',      tz: 'Europe/London',       flag: '🇬🇧' },
+    { city: 'PARIS',       tz: 'Europe/Paris',        flag: '🇫🇷' },
+    { city: 'ISTANBUL',    tz: 'Europe/Istanbul',     flag: '🇹🇷' },
+    { city: 'CAIRO',       tz: 'Africa/Cairo',        flag: '🇪🇬' },
+    { city: 'NAIROBI',     tz: 'Africa/Nairobi',      flag: '🇰🇪' },
+    { city: 'MOSCOW',      tz: 'Europe/Moscow',       flag: '🇷🇺' },
+    { city: 'DUBAI',       tz: 'Asia/Dubai',          flag: '🇦🇪' },
+    { city: 'KARACHI',     tz: 'Asia/Karachi',        flag: '🇵🇰' },
+    { city: 'DELHI',       tz: 'Asia/Kolkata',        flag: '🇮🇳' },
+    { city: 'DHAKA',       tz: 'Asia/Dhaka',          flag: '🇧🇩' },
+    { city: 'BANGKOK',     tz: 'Asia/Bangkok',        flag: '🇹🇭' },
+    { city: 'BEIJING',     tz: 'Asia/Shanghai',       flag: '🇨🇳' },
+    { city: 'TOKYO',       tz: 'Asia/Tokyo',          flag: '🇯🇵' },
+    { city: 'SYDNEY',      tz: 'Australia/Sydney',    flag: '🇦🇺' },
+    { city: 'AUCKLAND',    tz: 'Pacific/Auckland',    flag: '🇳🇿' },
+    { city: 'SAO PAULO',   tz: 'America/Sao_Paulo',  flag: '🇧🇷' },
   ],
 
   // ── AUTH ────────────────────────────────────────────────
-  // Credentials are SHA-256 hashed for client-side auth
-  // You will set these later. For now, default demo access.
-  // To generate: run in console:
-  //   crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourpassword'))
-  //     .then(h => Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join(''))
+  // Credential hashes are loaded from config.local.js (gitignored)
   auth: {
     enabled: true,
     sessionKey: 'godseye_session',
-    sessionDuration: 24 * 60 * 60 * 1000, // 24 hours
-    // Username: Benzpaws / Password: Benzpaws9
-    credentials: {
-      usernameHash: '0d07289b67c604a19878cfb8076cbdb7247dd3528b0aa9e509069a83192fd492',
-      passwordHash: 'cfdf73abb0dfecd12f5aac088e1bcc382ce4e38323ac54b50742478f77a8ee64',
+    sessionDuration: 24 * 60 * 60 * 1000,
+    get credentials() {
+      if (_LOCAL.auth && _LOCAL.auth.usernameHash) {
+        return { usernameHash: _LOCAL.auth.usernameHash, passwordHash: _LOCAL.auth.passwordHash };
+      }
+      console.warn('[GODS EYE] config.local.js not found — auth disabled.');
+      return null;
     }
   },
 

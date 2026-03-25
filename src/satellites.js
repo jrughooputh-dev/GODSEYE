@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-//  GODS EYE — SATELLITES MODULE
-//  TLE fetching, SGP4 propagation, mesh placement
+//  GODS EYE — SATELLITES MODULE v5
+//  TLE fetching, SGP4 propagation, emoji sprite icons
+//  ISS dedicated tracker, Open Notify crew data
 // ═══════════════════════════════════════════════════════════
 
 const Satellites = (() => {
@@ -8,6 +9,34 @@ const Satellites = (() => {
   let satMeshes = [];
   const trailHist = {};
 
+  // ── ISS state ──
+  let issData = { crew: [], nextPass: null, fetching: false };
+
+  // ── Category filter state ──
+  const catFilter = {
+    iss: true, starlink: true, weather: true, nav: true,
+    science: true, iridium: true, debris: true, other: true,
+  };
+
+  // ── Emoji sprite canvas cache ──────────────────────────
+  const spriteCache = {};
+
+  function makeEmojiSprite(emoji, sizePx = 28) {
+    if (spriteCache[emoji + sizePx]) return spriteCache[emoji + sizePx];
+    const canvas = document.createElement('canvas');
+    canvas.width = sizePx; canvas.height = sizePx;
+    const ctx = canvas.getContext('2d');
+    ctx.font = `${sizePx * 0.8}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.clearRect(0, 0, sizePx, sizePx);
+    ctx.fillText(emoji, sizePx / 2, sizePx / 2);
+    const tex = new THREE.CanvasTexture(canvas);
+    spriteCache[emoji + sizePx] = tex;
+    return tex;
+  }
+
+  // ── TLE Parsing ────────────────────────────────────────
   function parseTLEs(raw, cat) {
     const lines = raw.trim().split('\n').map(l => l.trim()).filter(Boolean);
     const sats = [];
@@ -26,21 +55,28 @@ const Satellites = (() => {
     return sats;
   }
 
+  function catMeta(cat) {
+    return CONFIG.catMeta[cat] || CONFIG.catMeta.other;
+  }
+
   function catColor(cat, god) {
-    return god ? (CONFIG.catColors.godview[cat] || CONFIG.catColors.godview.other)
-               : (CONFIG.catColors.normal[cat] || CONFIG.catColors.normal.other);
+    const m = catMeta(cat);
+    return god ? m.godColor : m.color;
   }
 
   function catLabel(cat) {
-    const m = { iss: 'ISS', starlink: 'STRLNK', weather: 'WTHR', nav: 'NAV', science: 'SCI', iridium: 'IRDM', aircraft: 'ACFT', debris: 'DBRS', other: 'OBJ' };
-    return m[cat] || 'OBJ';
+    return catMeta(cat).label;
   }
 
   function catClass(cat) {
-    const m = { iss: 'cs', starlink: 'cst', weather: 'cw', nav: 'cn', science: 'cs', iridium: 'co', aircraft: 'ca', debris: 'cd', other: 'co' };
-    return m[cat] || 'co';
+    return catMeta(cat).cssClass;
   }
 
+  function catIcon(cat) {
+    return catMeta(cat).icon;
+  }
+
+  // ── TLE Fetch ──────────────────────────────────────────
   async function fetchTLEGroup(group) {
     const urls = [CONFIG.proxy + encodeURIComponent(group.url), group.url];
     for (const url of urls) {
@@ -81,26 +117,65 @@ const Satellites = (() => {
     return { sats: allSats, fallback: false };
   }
 
+  // ── ISS Crew Fetch (Open Notify) ───────────────────────
+  async function fetchISSData() {
+    if (issData.fetching) return;
+    issData.fetching = true;
+    try {
+      const res = await fetch('http://api.open-notify.org/astros.json');
+      if (res.ok) {
+        const data = await res.json();
+        issData.crew = (data.people || []).filter(p => p.craft === 'ISS');
+      }
+    } catch (e) {
+      issData.crew = [];
+    }
+    issData.fetching = false;
+  }
+
+  function getISSIndex() {
+    return satellites.findIndex(s => s.cat === 'iss' && (s.name.includes('ISS') || s.name.includes('ZARYA')));
+  }
+
+  // ── Mesh Building with Emoji Sprites ──────────────────
   function buildMeshes(godMode) {
     Globe.satGroup.clear();
     satMeshes = [];
-    const geoISS = new THREE.SphereGeometry(0.016, 6, 6);
-    const geoStarlink = new THREE.SphereGeometry(0.004, 3, 3);
-    const geoDefault = new THREE.SphereGeometry(0.008, 4, 4);
-    const geoDebris = new THREE.SphereGeometry(0.003, 3, 3);
 
     satellites.forEach((sat, idx) => {
-      const col = catColor(sat.cat, godMode);
-      let geo = geoDefault;
-      if (sat.cat === 'iss') geo = geoISS;
-      else if (sat.cat === 'starlink') geo = geoStarlink;
-      else if (sat.cat === 'debris') geo = geoDebris;
-      const mat = new THREE.MeshBasicMaterial({ color: col });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.userData = { idx, type: 'sat', obj: sat };
-      Globe.satGroup.add(mesh);
-      satMeshes.push(mesh);
+      const meta = catMeta(sat.cat);
+      const emoji = sat.cat === 'iss' ? '🛰️' : meta.icon;
+      const sizePx = sat.cat === 'iss' ? 40 : sat.cat === 'debris' ? 16 : 24;
+
+      const tex = makeEmojiSprite(emoji, sizePx);
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: sat.cat === 'debris' ? 0.5 : 0.9,
+        depthTest: false,
+      });
+      const sprite = new THREE.Sprite(mat);
+      const scale = sat.cat === 'iss' ? 0.035 : sat.cat === 'debris' ? 0.008 : sat.cat === 'starlink' ? 0.010 : 0.016;
+      sprite.scale.setScalar(scale);
+      sprite.userData = { idx, type: 'sat', obj: sat };
+      Globe.satGroup.add(sprite);
+      satMeshes.push(sprite);
     });
+
+    applyCatFilter();
+  }
+
+  function applyCatFilter() {
+    satellites.forEach((sat, idx) => {
+      if (satMeshes[idx]) {
+        satMeshes[idx].visible = catFilter[sat.cat] !== false;
+      }
+    });
+  }
+
+  function setCatFilter(cat, val) {
+    catFilter[cat] = val;
+    applyCatFilter();
   }
 
   function propagate(godMode) {
@@ -127,9 +202,14 @@ const Satellites = (() => {
   }
 
   function recolor(godMode) {
-    satMeshes.forEach((m, i) => {
-      if (!satellites[i]) return;
-      m.material.color.setHex(catColor(satellites[i].cat, godMode));
+    satellites.forEach((sat, idx) => {
+      if (!satMeshes[idx]) return;
+      const meta = catMeta(sat.cat);
+      const emoji = godMode ? '⚠️' : (sat.cat === 'iss' ? '🛰️' : meta.icon);
+      const sizePx = sat.cat === 'iss' ? 40 : sat.cat === 'debris' ? 16 : 24;
+      satMeshes[idx].material.map = makeEmojiSprite(emoji, sizePx);
+      satMeshes[idx].material.needsUpdate = true;
+      satMeshes[idx].material.opacity = godMode ? 0.85 : (sat.cat === 'debris' ? 0.5 : 0.9);
     });
   }
 
@@ -154,9 +234,14 @@ const Satellites = (() => {
   }
 
   function select(idx, godMode) {
-    satMeshes.forEach((m, i) => {
-      m.material.color.setHex(i === idx ? 0xffffff : catColor(satellites[i].cat, godMode));
-      m.scale.setScalar(i === idx ? 3 : 1);
+    const SCALE_DEFAULT = 1;
+    const SCALE_SEL = 3;
+    satellites.forEach((sat, i) => {
+      if (!satMeshes[i]) return;
+      satMeshes[i].scale.setScalar(
+        i === idx ? (sat.cat === 'iss' ? 0.07 : 0.04)
+                  : (sat.cat === 'iss' ? 0.035 : sat.cat === 'debris' ? 0.008 : 0.016)
+      );
     });
     const sat = satellites[idx];
     if (sat && sat.lat !== undefined) {
@@ -170,7 +255,12 @@ const Satellites = (() => {
     set list(v) { satellites = v; },
     get meshes() { return satMeshes; },
     get trails() { return trailHist; },
-    parseTLEs, fetchAll, buildMeshes, propagate, recolor, drawTrail,
-    getThreatCounts, select, catColor, catLabel, catClass,
+    get issData() { return issData; },
+    get catFilter() { return catFilter; },
+    parseTLEs, fetchAll, fetchISSData, getISSIndex,
+    buildMeshes, propagate, recolor, drawTrail,
+    getThreatCounts, select,
+    catColor, catLabel, catClass, catIcon, catMeta,
+    setCatFilter, applyCatFilter,
   };
 })();

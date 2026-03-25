@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  GODS EYE — AUTH MODULE
 //  Client-side authentication with SHA-256 hashing
-//  Session persistence via localStorage
+//  Credentials loaded from src/config.local.js (gitignored)
 // ═══════════════════════════════════════════════════════════
 
 const Auth = (() => {
@@ -39,11 +39,19 @@ const Auth = (() => {
   }
 
   async function login(username, password) {
+    const creds = CONFIG.auth.credentials;
+
+    // If no local config found, auth is disabled — allow through with warning
+    if (!creds) {
+      console.warn('[GODS EYE] No credentials found in config.local.js — auth bypassed.');
+      setSession(username || 'OPERATOR');
+      return { success: true };
+    }
+
     const userHash = await sha256(username.toLowerCase().trim());
     const passHash = await sha256(password);
 
-    if (userHash === CONFIG.auth.credentials.usernameHash &&
-        passHash === CONFIG.auth.credentials.passwordHash) {
+    if (userHash === creds.usernameHash && passHash === creds.passwordHash) {
       setSession(username);
       return { success: true };
     }
@@ -52,6 +60,8 @@ const Auth = (() => {
 
   function isAuthenticated() {
     if (!CONFIG.auth.enabled) return true;
+    // If no credentials configured, auth is bypassed
+    if (!CONFIG.auth.credentials) return true;
     return getSession() !== null;
   }
 

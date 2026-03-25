@@ -27,18 +27,32 @@
 
 <aside id="lp">
   <div class="ph"><span id="panel-label">// TRACKED OBJECTS</span><span class="pc" id="lcount">0</span></div>
+
+  <!-- GOD VIEW threat dashboard — only visible in god mode -->
+  <div id="god-dashboard"></div>
+
+  <!-- Normal mode: threat bar (god mode only) -->
   <div id="threat-bar">
     <div class="threat-item"><span>THREATS</span><span class="threat-val" id="t-threats">0</span></div>
     <div class="threat-item"><span>LEO</span><span class="threat-val" id="t-leo">0</span></div>
     <div class="threat-item"><span>MEO</span><span class="threat-val" id="t-meo">0</span></div>
     <div class="threat-item"><span>GEO</span><span class="threat-val" id="t-geo">0</span></div>
   </div>
+
+  <!-- Layer toggles -->
   <div id="layers">
     <div class="ltog sat on" id="tog-sat" onclick="UI.toggleLayer('sat')">SAT</div>
     <div class="ltog air" id="tog-air" onclick="UI.toggleLayer('air')">ACFT</div>
     <div class="ltog nvg" id="tog-nvg" onclick="UI.toggleLayer('nvg')">NVG</div>
     <div class="ltog flir" id="tog-flir" onclick="UI.toggleLayer('flir')">FLIR</div>
   </div>
+
+  <!-- Category filters -->
+  <div id="cat-filter-wrap">
+    <div class="cat-filter-label">// FILTER BY TYPE</div>
+    <div id="cat-filters"></div>
+  </div>
+
   <input id="search" type="text" placeholder="> SEARCH DESIGNATION..." autocomplete="off" spellcheck="false">
   <div id="list"></div>
 
@@ -78,14 +92,20 @@
   <div class="rph" id="rph-label">// OBJECT TELEMETRY</div>
   <div id="dname"><span style="color:var(--gd);font-size:9px;letter-spacing:2px;">AWAITING TARGET LOCK</span></div>
   <div id="dbody">
-    <div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK DOT ON GLOBE<br>&gt; DRAG TO ROTATE<br>&gt; SCROLL TO ZOOM</div>
+    <div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE<br>&gt; SCROLL TO ZOOM</div>
   </div>
 
-  <!-- RADAR PANEL — slides over right panel -->
+  <!-- RADAR PANEL — slides over right panel, expands to overlay -->
   <div id="radar-panel">
     <div class="radar-hdr">
-      <span>📡 PROXIMITY RADAR // 50KM</span>
-      <span class="radar-close" onclick="UI.toggleRadar()">×</span>
+      <span>📡 PROXIMITY RADAR</span>
+      <div class="radar-hdr-btns">
+        <button class="radar-range-btn active" data-range="10" onclick="Radar.setRange(10)">10km</button>
+        <button class="radar-range-btn" data-range="50" onclick="Radar.setRange(50)">50km</button>
+        <button class="radar-range-btn" data-range="200" onclick="Radar.setRange(200)">200km</button>
+        <button class="radar-ctrl-btn" id="radar-expand-btn" onclick="Radar.toggleExpand()" title="Expand radar">⊞</button>
+        <span class="radar-close" onclick="UI.toggleRadar()">×</span>
+      </div>
     </div>
     <div class="radar-status-bar">
       <span>STATUS: <span class="rs-active" id="radar-status">OFFLINE</span></span>
@@ -105,9 +125,9 @@
 </aside>
 
 <footer id="ftr">
-  <span id="ftr-label">GODS EYE v4.0 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
+  <span id="ftr-label">GODS EYE v5.0 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
   <div class="fitems">
-    <span>CELESTRAK · OPENSKY</span>
+    <span>CELESTRAK · OPENSKY · AVIATIONSTACK</span>
     <span id="lupdate">SYNC: --</span>
     <span id="frtcount">RENDER: 0fps</span>
   </div>
@@ -119,6 +139,10 @@
 <!-- External deps -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+
+<!-- LOCAL CONFIG — loaded first, gitignored, holds API keys + credential hashes -->
+<!-- If this file is missing (e.g. cloned fresh), auth will be bypassed automatically -->
+<script src="src/config.local.js" onerror="window.GODS_EYE_LOCAL={}"></script>
 
 <!-- App modules (order matters) -->
 <script src="src/config.js"></script>
@@ -135,23 +159,24 @@
 <script>
 'use strict';
 
-// ── AUTH GATE ─────────────────────────────────────────────
+// ── AUTH GATE ──────────────────────────────────────────────
 if (!Auth.isAuthenticated()) {
   window.location.href = 'index.html';
 }
 
-// ── PROGRESS ──────────────────────────────────────────────
+// ── PROGRESS ───────────────────────────────────────────────
 function setProgress(pct, msg) {
   document.getElementById('lb').style.width = pct + '%';
   document.getElementById('lmsg').textContent = msg;
 }
 
-// ── INIT ──────────────────────────────────────────────────
+// ── INIT ───────────────────────────────────────────────────
 async function init() {
   setProgress(5, 'ESTABLISHING UPLINK...');
   Globe.init();
   UI.initTargeting();
   UI.initRaycast();
+  UI.buildCatFilterPanel();
 
   setProgress(10, 'CONNECTING TO CELESTRAK...');
   const result = await Satellites.fetchAll((label, count, i, total) => {
@@ -180,18 +205,21 @@ async function init() {
   document.getElementById('sdot').style.boxShadow = '0 0 8px #00ff41';
   document.getElementById('lupdate').textContent = 'SYNC: ' + new Date().toUTCString().slice(17, 25) + ' UTC';
 
+  // Pre-fetch ISS crew data in background
+  Satellites.fetchISSData();
+
   setProgress(100, 'ALL SYSTEMS NOMINAL');
   await new Promise(r => setTimeout(r, 500));
   document.getElementById('loading').style.display = 'none';
   Globe.autoRot = true;
 }
 
-// ── CLOCK ─────────────────────────────────────────────────
+// ── CLOCK ──────────────────────────────────────────────────
 function tick() {
   document.getElementById('utc').textContent = Utils.formatUTC();
 }
 
-// ── RENDER LOOP ───────────────────────────────────────────
+// ── RENDER LOOP ────────────────────────────────────────────
 let lastFPS = 0, fpsCount = 0;
 function animate() {
   requestAnimationFrame(animate);
@@ -214,14 +242,17 @@ function animate() {
     if (UI.selectedType === 'air' && UI.selectedIdx !== null) {
       Aircraft.place();
     }
-    if (UI.godMode) UI.updateThreatCounts();
+    if (UI.godMode) {
+      UI.updateThreatCounts();
+      UI.renderGodDashboard();
+    }
   }
 }
 
-// ── SEARCH ────────────────────────────────────────────────
+// ── SEARCH ─────────────────────────────────────────────────
 document.getElementById('search').addEventListener('input', e => UI.buildList(e.target.value));
 
-// ── AUTO-REFRESH ──────────────────────────────────────────
+// ── AUTO-REFRESH AIRCRAFT ──────────────────────────────────
 setInterval(() => {
   if (Aircraft.list.length > 0) {
     Aircraft.fetch().then(ok => {
@@ -230,7 +261,7 @@ setInterval(() => {
   }
 }, 60000);
 
-// ── LAUNCH ────────────────────────────────────────────────
+// ── LAUNCH ─────────────────────────────────────────────────
 setInterval(tick, 1000);
 init();
 animate();

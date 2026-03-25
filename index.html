@@ -61,12 +61,14 @@
         <span id="login-utc">--:--:-- UTC</span>
       </div>
       <div class="footer-line dim">
-        GODS EYE v4.0 // CLASSIFICATION: PUBLIC DATA ONLY
+        GODS EYE v5.0 // CLASSIFICATION: PUBLIC DATA ONLY
       </div>
     </div>
   </div>
 </div>
 
+<!-- LOCAL CONFIG — loaded first, gitignored, holds credential hashes -->
+<script src="src/config.local.js" onerror="window.GODS_EYE_LOCAL={}"></script>
 <script src="src/config.js"></script>
 <script src="src/auth.js"></script>
 <script>
@@ -101,9 +103,7 @@ async function attemptLogin() {
   btn.disabled = true;
   errEl.style.display = 'none';
 
-  // Simulate verification delay for realism
   await new Promise(r => setTimeout(r, 800));
-
   const result = await Auth.login(username, password);
 
   if (result.success) {
@@ -123,19 +123,12 @@ async function attemptLogin() {
     errEl.textContent = result.error;
     errEl.style.display = 'block';
     document.getElementById('login-box').style.borderColor = '#ff2020';
-    setTimeout(() => {
-      document.getElementById('login-box').style.borderColor = '';
-    }, 1500);
+    setTimeout(() => { document.getElementById('login-box').style.borderColor = ''; }, 1500);
   }
 }
 
-// Enter key handler
-document.getElementById('password').addEventListener('keydown', e => {
-  if (e.key === 'Enter') attemptLogin();
-});
-document.getElementById('username').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('password').focus();
-});
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+document.getElementById('username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('password').focus(); });
 </script>
 </body>
 </html>
