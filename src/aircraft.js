@@ -14,7 +14,7 @@ const Aircraft = (() => {
   const routeCache  = {};
 
   // ── Label zoom threshold ─────────────────────────────────
-  const LABEL_ZOOM_THRESHOLD = 3.8;
+  const LABEL_ZOOM_THRESHOLD = 2.3;
 
   // ── Military callsign prefix detection ──────────────────
   // Covers USAF, USN, Army, NATO allies, known mil prefixes
@@ -49,48 +49,56 @@ const Aircraft = (() => {
 
   function getPlaneTex() {
     if (_planeTex) return _planeTex;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 20;
+    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
     const ctx = cv.getContext('2d');
     ctx.clearRect(0, 0, 20, 20);
     // Draw small sharp plane silhouette
     ctx.fillStyle = '#00f5ff';
     ctx.beginPath();
-    ctx.moveTo(10, 2);   // nose
-    ctx.lineTo(12, 10); ctx.lineTo(18, 12); ctx.lineTo(12, 13);
-    ctx.lineTo(12, 17); ctx.lineTo(10, 16); ctx.lineTo(8, 17);
-    ctx.lineTo(8, 13);  ctx.lineTo(2, 12);  ctx.lineTo(8, 10);
+    ctx.moveTo(24, 4);
+    ctx.lineTo(29, 24); ctx.lineTo(44, 29); ctx.lineTo(29, 32);
+    ctx.lineTo(29, 42); ctx.lineTo(24, 40); ctx.lineTo(19, 42);
+    ctx.lineTo(19, 32); ctx.lineTo(4, 29); ctx.lineTo(19, 24);
     ctx.closePath(); ctx.fill();
     _planeTex = new THREE.CanvasTexture(cv);
+    _planeTex.magFilter = THREE.NearestFilter;
+    _planeTex.minFilter = THREE.NearestFilter;
     return _planeTex;
   }
 
   function getMilTex() {
     if (_milTex) return _milTex;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 20;
+    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
     const ctx = cv.getContext('2d');
     ctx.clearRect(0, 0, 20, 20);
     ctx.fillStyle = '#ff9900';
     ctx.beginPath();
-    ctx.moveTo(10, 2); ctx.lineTo(12, 10); ctx.lineTo(18, 12); ctx.lineTo(12, 13);
-    ctx.lineTo(12, 17); ctx.lineTo(10, 16); ctx.lineTo(8, 17);
-    ctx.lineTo(8, 13);  ctx.lineTo(2, 12);  ctx.lineTo(8, 10);
+    ctx.moveTo(24, 4);
+    ctx.lineTo(29, 24); ctx.lineTo(44, 29); ctx.lineTo(29, 32);
+    ctx.lineTo(29, 42); ctx.lineTo(24, 40); ctx.lineTo(19, 42);
+    ctx.lineTo(19, 32); ctx.lineTo(4, 29); ctx.lineTo(19, 24);
     ctx.closePath(); ctx.fill();
     _milTex = new THREE.CanvasTexture(cv);
+    _milTex.magFilter = THREE.NearestFilter;
+    _milTex.minFilter = THREE.NearestFilter;
     return _milTex;
   }
 
   function getGodTex() {
     if (_godTex) return _godTex;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 20;
+    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
     const ctx = cv.getContext('2d');
     ctx.clearRect(0, 0, 20, 20);
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
-    ctx.moveTo(10, 2); ctx.lineTo(12, 10); ctx.lineTo(18, 12); ctx.lineTo(12, 13);
-    ctx.lineTo(12, 17); ctx.lineTo(10, 16); ctx.lineTo(8, 17);
-    ctx.lineTo(8, 13);  ctx.lineTo(2, 12);  ctx.lineTo(8, 10);
+    ctx.moveTo(24, 4);
+    ctx.lineTo(29, 24); ctx.lineTo(44, 29); ctx.lineTo(29, 32);
+    ctx.lineTo(29, 42); ctx.lineTo(24, 40); ctx.lineTo(19, 42);
+    ctx.lineTo(19, 32); ctx.lineTo(4, 29); ctx.lineTo(19, 24);
     ctx.closePath(); ctx.fill();
     _godTex = new THREE.CanvasTexture(cv);
+    _godTex.magFilter = THREE.NearestFilter;
+    _godTex.minFilter = THREE.NearestFilter;
     return _godTex;
   }
 

@@ -430,8 +430,53 @@ const UI = (() => {
     else updateDetail();
     Satellites.drawTrail(idx, godMode);
     Satellites.select(idx, godMode);
-    // Clear any aircraft bracket
+    // Clear aircraft brackets
     Globe.bracketGroup.children.filter(c => c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
+    // Show untrack button
+    showUntrackBtn('sat', sat ? (sat.name.length > 18 ? `SAT-${sat.id}` : sat.name) : '');
+  }
+
+  // ── Deselect / Untrack ────────────────────────────────────
+  function deselect() {
+    selectedIdx  = null;
+    selectedType = 'sat';
+    Satellites.deselect();
+    Aircraft.showBracket(null, godMode);
+    Globe.bracketGroup.clear();
+    Globe.trailGroup.clear();
+    Globe.autoRot = false;
+    // Reset right panel
+    document.getElementById('dname').innerHTML = '<span style="color:var(--cd);font-size:9px;letter-spacing:2px;opacity:.5">AWAITING TARGET LOCK</span>';
+    document.getElementById('dbody').innerHTML = '<div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE · SCROLL TO ZOOM<br>&gt; <kbd style="border:1px solid var(--bo);padding:1px 5px;font-size:8px">ESC</kbd> TO UNTRACK</div>';
+    document.getElementById('poslabel').textContent = 'LAT: -- LON: --';
+    hideUntrackBtn();
+    buildList();
+  }
+
+  // ── Untrack button ────────────────────────────────────────
+  function showUntrackBtn(type, name) {
+    let btn = document.getElementById('untrack-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'untrack-btn';
+      btn.onclick = () => deselect();
+      document.getElementById('gw').appendChild(btn);
+    }
+    btn.innerHTML = `✕ UNTRACK ${name}`;
+    btn.style.cssText = `
+      position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+      font-family:var(--fd); font-size:8px; letter-spacing:2px;
+      padding:6px 16px; border:1px solid var(--c); color:var(--c);
+      background:rgba(0,0,0,.85); cursor:pointer; z-index:20;
+      clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+      box-shadow:0 0 12px rgba(0,245,255,.25); backdrop-filter:blur(8px);
+      transition:all .2s;
+    `;
+  }
+
+  function hideUntrackBtn() {
+    const btn = document.getElementById('untrack-btn');
+    if (btn) btn.remove();
   }
 
   // ── ISS Panel ─────────────────────────────────────────────
@@ -498,19 +543,24 @@ const UI = (() => {
     return `<div class="sat-header"><span class="sat-header-icon">🛰️</span><span class="sat-header-name">ISS — ZARYA</span></div>`;
   }
 
-  // ── Select Aircraft (FR24 + Palantir dossier) ─────────────
+  // ── Select Aircraft ───────────────────────────────────────
   async function selectAir(idx) {
     selectedIdx = idx; selectedType = 'air';
     buildList();
     Aircraft.showBracket(idx, godMode);
-    // Clear satellite bracket
     Globe.bracketGroup.children.filter(c => !c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
-
+    // Auto-zoom to 2.0 and centre
+    Globe.zoom = 2.0;
     const ac = Aircraft.list[idx];
+    if (ac && ac.lat != null) {
+      Globe.rotY = (-ac.lon - 90) * Math.PI / 180;
+      Globe.rotX = -ac.lat * Math.PI / 180 * 0.4;
+      Globe.autoRot = false;
+    }
     const cs = (ac.callsign || 'UNKNOWN').trim();
     document.getElementById('dname').innerHTML = _airNameHTML(ac, cs);
     document.getElementById('dbody').innerHTML = _airBasicHTML(ac, cs);
-
+    showUntrackBtn('air', cs);
     const route = await Aircraft.fetchRoute(cs);
     _renderAirFull(ac, cs, route);
   }
@@ -735,6 +785,11 @@ const UI = (() => {
     const mouse = new THREE.Vector2();
     const tip   = document.getElementById('tip');
 
+    // ESC to untrack
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape') deselect();
+    });
+
     Globe.canvas.addEventListener('click', e => {
       if (Globe.drag) return;
       const rect = Globe.canvas.getBoundingClientRect();
@@ -775,7 +830,7 @@ const UI = (() => {
     initTargeting, initRaycast, toggleGodView, toggleLayer, toggleMilitary, toggleRadar,
     buildList, buildDataLayers, buildCatFilterPanel, toggleCatFilter,
     selectSat, selectAir, updateDetail, updateThreatCounts, renderGodDashboard,
-    setSearchQuery, setFilterType, setFilterCountry,
+    setSearchQuery, setFilterType, setFilterCountry, deselect,
     get godMode()     { return godMode; },
     get selectedIdx() { return selectedIdx; },
     get selectedType(){ return selectedType; },

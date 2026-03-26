@@ -310,14 +310,12 @@ const Radar = (() => {
       radarCanvas = document.getElementById('radar-canvas-exp');
       if (radarCanvas) {
         radarCtx = radarCanvas.getContext('2d');
-        // Size the canvas properly
-        const wrap = radarCanvas.parentElement;
         const size = Math.min(window.innerHeight * 0.7, 520);
         radarCanvas.width  = size;
         radarCanvas.height = size;
-        // Restart loop with new canvas
         if (active) startLoop(UI.godMode);
-        renderBlipList(UI.godMode);
+        // Render list after another tick so #radar-list is in DOM
+        setTimeout(() => renderBlipList(UI.godMode), 100);
       }
     });
   }
@@ -373,21 +371,31 @@ const Radar = (() => {
 
   function startLoop(godMode) {
     if (animFrame) cancelAnimationFrame(animFrame);
+    let lastListRender = 0;
     function loop() {
       if (!active) return;
       animFrame = requestAnimationFrame(loop);
-      // Always re-check canvas in case it was swapped by overlay mount/unmount
+      // Re-check canvas reference each frame
       if (!radarCanvas || !radarCtx) {
         radarCanvas = document.getElementById('radar-canvas-exp') || document.getElementById('radar-canvas');
         if (radarCanvas) radarCtx = radarCanvas.getContext('2d');
       }
-      drawRadar(godMode);
+      if (radarCtx) drawRadar(godMode);
+
+      // Update status indicators
       const ov  = document.getElementById('radar-status-ov');
       const cnt = document.getElementById('radar-count-ov');
       if (ov)  ov.textContent  = active && locationGranted ? 'SCANNING' : 'OFFLINE';
       if (cnt) cnt.textContent = blips.length + ' CONTACTS';
-      if (Date.now() - lastScan > 5000) {
-        scan(); renderBlipList(godMode); updateStatusUI();
+
+      const now = Date.now();
+      // Re-scan every 5s, re-render list every 1s
+      if (now - lastScan > 5000) {
+        scan(); updateStatusUI();
+      }
+      if (now - lastListRender > 1000) {
+        renderBlipList(godMode);
+        lastListRender = now;
       }
     }
     loop();

@@ -311,6 +311,13 @@ function animate() {
   Globe.render();
   ZoomLever.update();
 
+  // Track zoom crossing the label threshold — refresh visibility when it changes
+  const curZoom = Globe.zoom;
+  if (Math.abs(curZoom - (animate._lastZoom || 0)) > 0.05) {
+    Satellites.applyCatFilter();
+    animate._lastZoom = curZoom;
+  }
+
   if (Globe.frame % CONFIG.satUpdateFrames === 0) {
     Satellites.propagate(UI.godMode);
     tick();
