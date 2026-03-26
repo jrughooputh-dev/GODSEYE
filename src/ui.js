@@ -453,6 +453,7 @@ const UI = (() => {
     document.getElementById('poslabel').textContent = 'LAT: -- LON: --';
     hideUntrackBtn();
     if (typeof TrackBracket !== 'undefined') TrackBracket.hide();
+    if (typeof animate !== 'undefined') animate._lastKey = null;
     buildList();
   }
 
