@@ -114,9 +114,9 @@ const Radar = (() => {
     if (!radarCtx || !radarCanvas) return;
     const W = radarCanvas.width, H = radarCanvas.height;
     const cx = W/2, cy = H/2, R = Math.min(cx, cy) - (expanded ? 20 : 8);
-    const green    = godMode ? '#ff1744' : '#00f5ff';
+    const green    = godMode ? '#00ffcc' : '#00f5ff';
     const greenDim = godMode ? '#880020' : '#007a88';
-    const gf       = godMode ? 'rgba(255,23,68,' : 'rgba(0,245,255,';
+    const gf       = godMode ? 'rgba(0,255,204,' : 'rgba(0,245,255,';
     const bg       = godMode ? '#0a0002' : '#000510';
     const fs       = expanded ? 11 : 7;
 
@@ -271,7 +271,6 @@ const Radar = (() => {
   }
 
   function _mountOverlay() {
-    // Hide the globe canvas — put overlay on top
     let overlay = document.getElementById('radar-overlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -293,7 +292,7 @@ const Radar = (() => {
         </div>
         <div class="radar-overlay-body">
           <div class="radar-overlay-canvas-wrap">
-            <canvas id="radar-canvas" width="480" height="480"></canvas>
+            <canvas id="radar-canvas-exp" width="480" height="480"></canvas>
           </div>
           <div class="radar-overlay-list-wrap">
             <div class="radar-overlay-list-header">
@@ -305,19 +304,35 @@ const Radar = (() => {
         </div>
       </div>`;
     overlay.style.display = 'flex';
-    // Re-init canvas reference
-    radarCanvas = document.getElementById('radar-canvas');
-    if (radarCanvas) radarCtx = radarCanvas.getContext('2d');
-    resizeCanvas();
+
+    // Defer canvas init by one tick so DOM is fully painted
+    requestAnimationFrame(() => {
+      radarCanvas = document.getElementById('radar-canvas-exp');
+      if (radarCanvas) {
+        radarCtx = radarCanvas.getContext('2d');
+        // Size the canvas properly
+        const wrap = radarCanvas.parentElement;
+        const size = Math.min(window.innerHeight * 0.7, 520);
+        radarCanvas.width  = size;
+        radarCanvas.height = size;
+        // Restart loop with new canvas
+        if (active) startLoop(UI.godMode);
+        renderBlipList(UI.godMode);
+      }
+    });
   }
 
   function _unmountOverlay() {
     const overlay = document.getElementById('radar-overlay');
     if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
-    // Re-point canvas to inline panel canvas
-    const inlineCanvas = document.querySelector('#radar-panel #radar-canvas') || document.getElementById('radar-canvas');
-    if (inlineCanvas) { radarCanvas = inlineCanvas; radarCtx = radarCanvas.getContext('2d'); }
-    resizeCanvas();
+    // Re-point back to the inline panel canvas
+    radarCanvas = document.getElementById('radar-canvas');
+    if (radarCanvas) {
+      radarCtx = radarCanvas.getContext('2d');
+      radarCanvas.width  = 240;
+      radarCanvas.height = 240;
+    }
+    if (active) startLoop(UI.godMode);
   }
 
   function setRange(km) {
@@ -335,8 +350,14 @@ const Radar = (() => {
 
   async function activate(godMode) {
     active = true;
+    // Always grab the inline panel canvas fresh on activate
+    radarCanvas = document.getElementById('radar-canvas');
+    if (radarCanvas) {
+      radarCtx = radarCanvas.getContext('2d');
+      radarCanvas.width  = 240;
+      radarCanvas.height = 240;
+    }
     const gotLoc = await requestLocation();
-    if (!expanded) initCanvas();
     if (gotLoc) { scan(); renderBlipList(godMode); }
     updateStatusUI();
     startLoop(godMode);
@@ -355,9 +376,13 @@ const Radar = (() => {
     function loop() {
       if (!active) return;
       animFrame = requestAnimationFrame(loop);
+      // Always re-check canvas in case it was swapped by overlay mount/unmount
+      if (!radarCanvas || !radarCtx) {
+        radarCanvas = document.getElementById('radar-canvas-exp') || document.getElementById('radar-canvas');
+        if (radarCanvas) radarCtx = radarCanvas.getContext('2d');
+      }
       drawRadar(godMode);
-      // Update overlay status text if open
-      const ov = document.getElementById('radar-status-ov');
+      const ov  = document.getElementById('radar-status-ov');
       const cnt = document.getElementById('radar-count-ov');
       if (ov)  ov.textContent  = active && locationGranted ? 'SCANNING' : 'OFFLINE';
       if (cnt) cnt.textContent = blips.length + ' CONTACTS';

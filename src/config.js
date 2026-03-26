@@ -48,15 +48,15 @@ const CONFIG = {
 
   // ── SATELLITE CATEGORY META ──────────────────────────────
   catMeta: {
-    iss:      { icon: '🛰️',  label: 'ISS',    color: 0xffb700, godColor: 0xff4400, purpose: 'Crewed Space Station',       cssClass: 'cs'  },
-    starlink: { icon: '📡',  label: 'STRLNK', color: 0x00f5ff, godColor: 0xff2200, purpose: 'Communications (Starlink)',  cssClass: 'cst' },
-    weather:  { icon: '🌍',  label: 'WTHR',   color: 0x88ffcc, godColor: 0xff6622, purpose: 'Earth Observation / Weather',cssClass: 'cw'  },
-    nav:      { icon: '🧭',  label: 'NAV',    color: 0xffcc88, godColor: 0xff8844, purpose: 'Navigation / GPS',            cssClass: 'cn'  },
-    science:  { icon: '🔭',  label: 'SCI',    color: 0xcc88ff, godColor: 0xff3311, purpose: 'Scientific Research',         cssClass: 'css' },
-    iridium:  { icon: '📡',  label: 'IRDM',   color: 0xaaaaff, godColor: 0xff5500, purpose: 'Communications (Iridium)',   cssClass: 'co'  },
-    debris:   { icon: '🗑️',  label: 'DBRS',   color: 0x555577, godColor: 0xff1111, purpose: 'Space Debris',                cssClass: 'cd'  },
-    other:    { icon: '🛰️',  label: 'OBJ',    color: 0x00ff88, godColor: 0xff2020, purpose: 'Other / Unclassified',        cssClass: 'co'  },
-    aircraft: { icon: '✈️',  label: 'ACFT',   color: 0x00f5ff, godColor: 0xff0044, purpose: 'Aircraft',                   cssClass: 'ca'  },
+    iss:      { icon: '🛰️',  label: 'ISS',    color: 0xffb700, godColor: 0x00ffcc, purpose: 'Crewed Space Station',       cssClass: 'cs'  },
+    starlink: { icon: '📡',  label: 'STRLNK', color: 0x00f5ff, godColor: 0x00ffcc, purpose: 'Communications (Starlink)',  cssClass: 'cst' },
+    weather:  { icon: '🌍',  label: 'WTHR',   color: 0x88ffcc, godColor: 0x00ffcc, purpose: 'Earth Observation / Weather',cssClass: 'cw'  },
+    nav:      { icon: '🧭',  label: 'NAV',    color: 0xffcc88, godColor: 0x00ffcc, purpose: 'Navigation / GPS',            cssClass: 'cn'  },
+    science:  { icon: '🔭',  label: 'SCI',    color: 0xcc88ff, godColor: 0x00ffcc, purpose: 'Scientific Research',         cssClass: 'css' },
+    iridium:  { icon: '📡',  label: 'IRDM',   color: 0xaaaaff, godColor: 0x00ffcc, purpose: 'Communications (Iridium)',   cssClass: 'co'  },
+    debris:   { icon: '🗑️',  label: 'DBRS',   color: 0x555577, godColor: 0x00ffcc, purpose: 'Space Debris',                cssClass: 'cd'  },
+    other:    { icon: '🛰️',  label: 'OBJ',    color: 0x00ff88, godColor: 0x00ffcc, purpose: 'Other / Unclassified',        cssClass: 'co'  },
+    aircraft: { icon: '✈️',  label: 'ACFT',   color: 0x00f5ff, godColor: 0x00ffcc, purpose: 'Aircraft',                   cssClass: 'ca'  },
   },
 
   // ── MILITARY CALLSIGN PREFIXES ───────────────────────────

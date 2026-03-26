@@ -49,9 +49,11 @@ const Satellites = (() => {
       if (lines[i + 1].startsWith('1 ') && lines[i + 2].startsWith('2 ')) {
         try {
           const sr = satellite.twoline2satrec(lines[i + 1], lines[i + 2]);
+          const rawId = parseInt(lines[i + 1].substring(2, 7).trim(), 10);
           sats.push({
             name: lines[i].trim(), tle1: lines[i + 1], tle2: lines[i + 2],
-            satrec: sr, cat, id: parseInt(lines[i + 1].substring(2, 7))
+            satrec: sr, cat,
+            id: isNaN(rawId) ? Math.floor(Math.random() * 99999) : rawId
           });
           i += 2;
         } catch (e) {}
@@ -75,7 +77,7 @@ const Satellites = (() => {
 
   // Label color per category
   function labelColor(cat, god) {
-    if (god) return '#ff4422';
+    if (god) return '#00ffcc';
     const colors = {
       iss: '#ffb700', starlink: '#00f5ff', weather: '#88ffcc',
       nav: '#ffcc88', science: '#cc88ff', iridium: '#aaaaff',
@@ -156,12 +158,13 @@ const Satellites = (() => {
       // ── Square dot sprite ──
       const isISS   = sat.cat === 'iss';
       const colStr  = dotColorStr(sat.cat, godMode);
-      const dotSize = isISS ? 12 : sat.cat === 'debris' ? 5 : 8;
+      const dotSize = isISS ? 10 : sat.cat === 'debris' ? 4 : 6;
       const tex     = makeDotTex(colStr, dotSize);
       const mat     = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false,
-                        opacity: sat.cat === 'debris' ? 0.45 : 0.9 });
+                        opacity: sat.cat === 'debris' ? 0.4 : 0.85 });
       const sprite  = new THREE.Sprite(mat);
-      const scale   = isISS ? 0.028 : sat.cat === 'debris' ? 0.007 : sat.cat === 'starlink' ? 0.009 : 0.013;
+      // World-space size: ISS slightly larger, debris tiny, rest uniform small
+      const scale   = isISS ? 0.012 : sat.cat === 'debris' ? 0.004 : 0.006;
       sprite.scale.setScalar(scale);
       sprite.userData = { idx, type: 'sat', obj: sat };
       Globe.satGroup.add(sprite);
@@ -238,20 +241,14 @@ const Satellites = (() => {
   }
 
   // ── Recolor ────────────────────────────────────────────
+  // Only swaps dot texture — no sprite rebuilding, no lag
   function recolor(godMode) {
     satellites.forEach((sat, idx) => {
       if (!satMeshes[idx]) return;
-      const colStr = dotColorStr(sat.cat, godMode);
-      const dotSize = sat.cat === 'iss' ? 12 : sat.cat === 'debris' ? 5 : 8;
-      satMeshes[idx].material.map = makeDotTex(godMode ? '#ff2020' : colStr, dotSize);
+      const colStr  = dotColorStr(sat.cat, godMode);
+      const dotSize = sat.cat === 'iss' ? 10 : sat.cat === 'debris' ? 4 : 6;
+      satMeshes[idx].material.map = makeDotTex(colStr, dotSize);
       satMeshes[idx].material.needsUpdate = true;
-
-      if (satLabels[idx]) {
-        const lc = labelColor(sat.cat, godMode);
-        const labelText = sat.cat === 'iss' ? 'ISS' : `SAT-${sat.id}`;
-        satLabels[idx].material.map = Globe.makeLabelSprite(labelText, lc, 0.55, 9).material.map;
-        satLabels[idx].material.needsUpdate = true;
-      }
     });
   }
 
@@ -263,7 +260,7 @@ const Satellites = (() => {
     const pts = h.map(p => Utils.ll2v3(p.lat, p.lon, 1 + (p.alt / 6371) * 1.4));
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
     // Yellow trail matching reference screenshots
-    const color = godMode ? 0xff2200 : 0xffcc00;
+    const color = godMode ? 0x00ffcc : 0xffcc00;
     const mat   = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.6 });
     Globe.trailGroup.add(new THREE.Line(geo, mat));
   }
@@ -277,7 +274,7 @@ const Satellites = (() => {
     activeBracket = null;
     if (idx === null || !satMeshes[idx]) return;
 
-    const color  = godMode ? 0xff2020 : 0xffb700;
+    const color  = godMode ? 0x00ffcc : 0xffb700;
     const bracket= Globe.makeBracket(0.055, color);
     bracket.position.copy(satMeshes[idx].position);
     bracket.userData = { idx };

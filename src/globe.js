@@ -10,6 +10,7 @@ const Globe = (() => {
   let warGrid1Mat, warGrid2Mat, godAtMat, godSphereMat;
   let earthMat, atmoMat, cloudMat, starMat;
   let satGroup, airGroup, trailGroup, labelGroup, bracketGroup;
+  let geoGrid, flagGroup;
   let sunLight, ambLight;
 
   let drag = false, prevM = { x: 0, y: 0 };
@@ -51,6 +52,9 @@ const Globe = (() => {
     createGodViewElements();
     createLights();
     createGroups();
+    createClickBlocker();
+    geoGrid  = createGeoGrid();
+    flagGroup = createFlagMarkers();
     setupControls();
   }
 
@@ -170,7 +174,7 @@ const Globe = (() => {
     warGrid2    = new THREE.Mesh(new THREE.SphereGeometry(1.003, 24, 12), warGrid2Mat);
     scene.add(warGrid2);
 
-    godAtMat = new THREE.MeshBasicMaterial({ color: 0xff1100, transparent: true, opacity: 0, side: THREE.BackSide });
+    godAtMat = new THREE.MeshBasicMaterial({ color: 0x002244, transparent: true, opacity: 0, side: THREE.BackSide });
     godAtmo  = new THREE.Mesh(new THREE.SphereGeometry(1.06, 32, 32), godAtMat);
     scene.add(godAtmo);
   }
@@ -189,35 +193,166 @@ const Globe = (() => {
     satGroup    = new THREE.Group();
     airGroup    = new THREE.Group();
     trailGroup  = new THREE.Group();
-    labelGroup  = new THREE.Group();   // floating name labels
-    bracketGroup= new THREE.Group();   // targeting bracket lines
+    labelGroup  = new THREE.Group();
+    bracketGroup= new THREE.Group();
     scene.add(satGroup, airGroup, trailGroup, labelGroup, bracketGroup);
+  }
+
+  // ── Click-blocker: solid sphere at earth surface ─────────
+  // Prevents raycasts from hitting objects on the far side of the globe
+  function createClickBlocker() {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x000000, transparent: true, opacity: 0.001,
+      side: THREE.FrontSide, depthWrite: true,
+    });
+    const blocker = new THREE.Mesh(new THREE.SphereGeometry(1.001, 64, 32), mat);
+    blocker.renderOrder = 0;
+    blocker.userData.isBlocker = true;
+    scene.add(blocker);
+    return blocker;
+  }
+
+  // ── Lat/Lon grid with coordinate labels ──────────────────
+  function createGeoGrid() {
+    const gridGroup = new THREE.Group();
+    const R = 1.002;
+
+    const lineMat    = new THREE.LineBasicMaterial({ color: 0x00f5ff, transparent: true, opacity: 0.15 });
+    const majorMat   = new THREE.LineBasicMaterial({ color: 0x00f5ff, transparent: true, opacity: 0.35 });
+    const equatorMat = new THREE.LineBasicMaterial({ color: 0xffb700, transparent: true, opacity: 0.6 });
+    const primeMat   = new THREE.LineBasicMaterial({ color: 0xffb700, transparent: true, opacity: 0.6 });
+    const tropicMat  = new THREE.LineBasicMaterial({ color: 0x7b2fff, transparent: true, opacity: 0.4 });
+
+    const ll2v = (lat, lon, r) => {
+      const phi   = (90 - lat) * Math.PI / 180;
+      const theta = (lon + 180) * Math.PI / 180;
+      return new THREE.Vector3(
+        -r * Math.sin(phi) * Math.cos(theta),
+         r * Math.cos(phi),
+         r * Math.sin(phi) * Math.sin(theta)
+      );
+    };
+
+    // Latitude parallels
+    for (let lat = -80; lat <= 80; lat += 10) {
+      const pts = [];
+      for (let lon = -180; lon <= 180; lon += 2) pts.push(ll2v(lat, lon, R));
+      const mat = lat === 0 ? equatorMat : (lat % 30 === 0 ? majorMat : lineMat);
+      gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+    }
+
+    // Longitude meridians
+    for (let lon = -180; lon < 180; lon += 10) {
+      const pts = [];
+      for (let lat = -90; lat <= 90; lat += 2) pts.push(ll2v(lat, lon, R));
+      const mat = lon === 0 ? primeMat : (lon % 30 === 0 ? majorMat : lineMat);
+      gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+    }
+
+    // Tropics + Arctic/Antarctic circles (violet)
+    [23.5, -23.5, 66.5, -66.5].forEach(lat => {
+      const pts = [];
+      for (let lon = -180; lon <= 180; lon += 2) pts.push(ll2v(lat, lon, R));
+      gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), tropicMat));
+    });
+
+    // Coordinate text labels
+    const coordLabels = [
+      { lat:0, lon:0, t:'0°' }, { lat:0, lon:90, t:'90°E' }, { lat:0, lon:-90, t:'90°W' },
+      { lat:0, lon:180, t:'180°' }, { lat:30, lon:0, t:'30°N' }, { lat:-30, lon:0, t:'30°S' },
+      { lat:60, lon:0, t:'60°N' }, { lat:-60, lon:0, t:'60°S' },
+      { lat:0, lon:30, t:'30°E' }, { lat:0, lon:60, t:'60°E' }, { lat:0, lon:120, t:'120°E' },
+      { lat:0, lon:150, t:'150°E' }, { lat:0, lon:-30, t:'30°W' }, { lat:0, lon:-60, t:'60°W' },
+      { lat:0, lon:-120, t:'120°W' }, { lat:0, lon:-150, t:'150°W' },
+    ];
+    coordLabels.forEach(({ lat, lon, t }) => {
+      const spr = makeLabelSprite(t, '#ffb700', 0.55, 8);
+      spr.position.copy(ll2v(lat, lon, R + 0.02));
+      spr.userData.isGridLabel = true;
+      gridGroup.add(spr);
+    });
+
+    scene.add(gridGroup);
+    return gridGroup;
+  }
+
+  // ── Country flag markers ──────────────────────────────────
+  const TZ_MARKERS = [
+    { flag:'🇺🇸', lat:38.9, lon:-77.0, name:'USA' }, { flag:'🇨🇦', lat:45.4, lon:-75.7, name:'CAN' },
+    { flag:'🇬🇧', lat:51.5, lon:-0.1,  name:'GBR' }, { flag:'🇫🇷', lat:48.9, lon:2.3,   name:'FRA' },
+    { flag:'🇩🇪', lat:52.5, lon:13.4,  name:'DEU' }, { flag:'🇷🇺', lat:55.8, lon:37.6,  name:'RUS' },
+    { flag:'🇨🇳', lat:39.9, lon:116.4, name:'CHN' }, { flag:'🇯🇵', lat:35.7, lon:139.7, name:'JPN' },
+    { flag:'🇮🇳', lat:28.6, lon:77.2,  name:'IND' }, { flag:'🇧🇷', lat:-15.8,lon:-47.9, name:'BRA' },
+    { flag:'🇦🇺', lat:-35.3,lon:149.1, name:'AUS' }, { flag:'🇿🇦', lat:-25.7,lon:28.2,  name:'ZAF' },
+    { flag:'🇳🇬', lat:9.1,  lon:7.5,   name:'NGA' }, { flag:'🇦🇷', lat:-34.6,lon:-58.4, name:'ARG' },
+    { flag:'🇲🇽', lat:19.4, lon:-99.1, name:'MEX' }, { flag:'🇮🇩', lat:-6.2, lon:106.8, name:'IDN' },
+    { flag:'🇸🇦', lat:24.7, lon:46.7,  name:'SAU' }, { flag:'🇹🇷', lat:39.9, lon:32.9,  name:'TUR' },
+    { flag:'🇰🇷', lat:37.6, lon:127.0, name:'KOR' }, { flag:'🇵🇰', lat:33.7, lon:73.1,  name:'PAK' },
+    { flag:'🇮🇷', lat:35.7, lon:51.4,  name:'IRN' }, { flag:'🇪🇬', lat:30.1, lon:31.2,  name:'EGY' },
+    { flag:'🇬🇪', lat:41.7, lon:44.8,  name:'GEO' }, { flag:'🇺🇦', lat:50.5, lon:30.5,  name:'UKR' },
+    { flag:'🇳🇿', lat:-41.3,lon:174.8, name:'NZL' }, { flag:'🇸🇬', lat:1.4,  lon:103.8, name:'SGP' },
+    { flag:'🇹🇭', lat:13.8, lon:100.5, name:'THA' }, { flag:'🇪🇪', lat:59.4, lon:24.7,  name:'EST' },
+  ];
+
+  function makeFlagSprite(flag, name) {
+    const cv = document.createElement('canvas');
+    cv.width = 60; cv.height = 30;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, 60, 30);
+    ctx.font = '18px serif';
+    ctx.fillText(flag, 0, 20);
+    ctx.font = '7px "Share Tech Mono", monospace';
+    ctx.fillStyle = 'rgba(0,245,255,0.9)';
+    ctx.fillText(name, 22, 11);
+    const tex = new THREE.CanvasTexture(cv);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.9 });
+    const spr = new THREE.Sprite(mat);
+    spr.scale.set(0.09, 0.045, 1);
+    return spr;
+  }
+
+  function createFlagMarkers() {
+    const flagGroup = new THREE.Group();
+    TZ_MARKERS.forEach(m => {
+      const spr = makeFlagSprite(m.flag, m.name);
+      const phi   = (90 - m.lat) * Math.PI / 180;
+      const theta = (m.lon + 180) * Math.PI / 180;
+      const r = 1.016;
+      spr.position.set(
+        -r * Math.sin(phi) * Math.cos(theta),
+         r * Math.cos(phi),
+         r * Math.sin(phi) * Math.sin(theta)
+      );
+      spr.userData.isFlag = true;
+      flagGroup.add(spr);
+    });
+    scene.add(flagGroup);
+    return flagGroup;
   }
 
   // ── Label sprite helper ───────────────────────────────────
   // Creates a canvas-text sprite for floating labels above objects
   function makeLabelSprite(text, color = '#ffb700', bgAlpha = 0.0, fontSize = 11) {
-    const canvas = document.createElement('canvas');
+    const lc = document.createElement('canvas');
     const padding = 6;
-    const ctx = canvas.getContext('2d');
+    const ctx = lc.getContext('2d');
     ctx.font = `${fontSize}px "Share Tech Mono", monospace`;
     const tw = ctx.measureText(text).width;
-    canvas.width  = tw + padding * 2;
-    canvas.height = fontSize + padding * 2;
-    // Re-apply font after resize
+    lc.width  = tw + padding * 2;
+    lc.height = fontSize + padding * 2;
     ctx.font = `${fontSize}px "Share Tech Mono", monospace`;
     if (bgAlpha > 0) {
       ctx.fillStyle = `rgba(0,0,0,${bgAlpha})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, lc.width, lc.height);
     }
     ctx.fillStyle = color;
     ctx.fillText(text, padding, fontSize + padding * 0.6);
-    const tex = new THREE.CanvasTexture(canvas);
+    const tex = new THREE.CanvasTexture(lc);
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(mat);
-    // Scale relative to canvas aspect
-    const aspect = canvas.width / canvas.height;
-    sprite.scale.set(aspect * 0.06, 0.06, 1);
+    // Fixed world-space size — not dependent on canvas pixel dimensions
+    const charW = 0.012;
+    sprite.scale.set(text.length * charW, 0.045, 1);
     return sprite;
   }
 
@@ -302,12 +437,17 @@ const Globe = (() => {
   function enterGodView() {
     earth.visible = false; clouds.visible = false; gridMesh.visible = false; atmoMesh.visible = false;
     godSphere.visible = true; godSphereMat.opacity = 0.01;
-    animateProp(warGrid1Mat, 'opacity', 0, 0.12, 1200);
-    animateProp(warGrid2Mat, 'opacity', 0, 0.06, 1400);
-    animateProp(godAtMat,    'opacity', 0, 0.08, 1000);
-    setTimeout(() => { starMat.color.setHex(0xff2200); starMat.opacity = 0.35; }, 400);
-    ambLight.color.setHex(0x1a0000); ambLight.intensity = 0.6;
-    sunLight.color.setHex(0xff2200); sunLight.intensity = 0.9;
+    animateProp(warGrid1Mat, 'opacity', 0, 0.14, 1200);
+    animateProp(warGrid2Mat, 'opacity', 0, 0.07, 1400);
+    animateProp(godAtMat,    'opacity', 0, 0.1,  1000);
+    // Teal/navy war mode — readable, not eye-searing red
+    godSphereMat.color.setHex(0x000a14);
+    warGrid1Mat.color.setHex(0x00ffcc);
+    warGrid2Mat.color.setHex(0x00ccff);
+    godAtMat.color.setHex(0x002244);
+    setTimeout(() => { starMat.color.setHex(0x00ffcc); starMat.opacity = 0.6; }, 400);
+    ambLight.color.setHex(0x001122); ambLight.intensity = 0.7;
+    sunLight.color.setHex(0x00ccff); sunLight.intensity = 1.0;
   }
 
   function exitGodView() {
@@ -331,8 +471,8 @@ const Globe = (() => {
     atmoMat.uniforms.sunDirection.value.copy(sunDir);
     sunLight.position.copy(sunDir.clone().multiplyScalar(10));
 
-    const allGroups = [earth, clouds, gridMesh, atmoMesh, godSphere, warGrid1, warGrid2, godAtmo, satGroup, airGroup, trailGroup, labelGroup, bracketGroup];
-    allGroups.forEach(g => { g.rotation.x = rotX; g.rotation.y = rotY; });
+    const allGroups = [earth, clouds, gridMesh, atmoMesh, godSphere, warGrid1, warGrid2, godAtmo, satGroup, airGroup, trailGroup, labelGroup, bracketGroup, geoGrid, flagGroup];
+    allGroups.forEach(g => { if (g) { g.rotation.x = rotX; g.rotation.y = rotY; } });
     clouds.rotation.y = rotY + frame * 0.00005;
 
     // ── Zoom: read from internal variable, camera follows ──

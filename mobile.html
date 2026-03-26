@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GODS EYE // MOBILE RADAR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c:#00f5ff;--cd:#00b8cc;--v:#7b2fff;--a:#ffb700;--r:#ff4400;
+  --bg:#00080f;--panel:rgba(0,10,24,.97);
+  --bo:rgba(0,245,255,.22);--bb:rgba(0,245,255,.35);
+  --glass:rgba(0,245,255,.07);
+  --fm:'Share Tech Mono',monospace;--fd:'Orbitron',monospace;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--c);font-family:var(--fm);overflow:hidden;-webkit-tap-highlight-color:transparent}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,245,255,.004) 3px,rgba(0,245,255,.004) 4px)}
+
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;position:relative}
+
+/* ── HEADER ── */
+#hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--bb);background:var(--panel);flex-shrink:0;position:relative}
+#hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c) 40%,var(--v),transparent);opacity:.6}
+.htitle{font-family:var(--fd);font-size:11px;font-weight:900;letter-spacing:4px;color:var(--c);text-shadow:0 0 16px var(--c)}
+.htitle em{color:var(--v);font-style:normal}
+#utc{font-family:var(--fd);font-size:9px;color:var(--a);letter-spacing:2px}
+
+/* ── STATUS BAR ── */
+#status-bar{display:flex;gap:10px;align-items:center;padding:5px 14px;border-bottom:1px solid var(--bo);background:rgba(0,245,255,.02);font-size:8px;letter-spacing:1px;flex-shrink:0}
+.sb-dot{width:5px;height:5px;border-radius:50%;background:var(--c);box-shadow:0 0 6px var(--c);animation:blink 2s infinite;flex-shrink:0}
+.sb-dot.off{background:#333;box-shadow:none;animation:none}
+#status-text{color:var(--c);font-family:var(--fd);font-size:8px;letter-spacing:2px}
+#contact-count{margin-left:auto;color:var(--a);font-family:var(--fd)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+
+/* ── RADAR CANVAS ── */
+#radar-wrap{position:relative;flex-shrink:0;display:flex;justify-content:center;align-items:center;background:rgba(0,4,10,.8);padding:12px;border-bottom:1px solid var(--bo)}
+#rc{border:1px solid var(--bo);border-radius:50%;display:block;box-shadow:0 0 20px rgba(0,245,255,.08);background:#000306}
+#your-pos{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:7px;letter-spacing:1px;color:var(--cd);white-space:nowrap;background:rgba(0,8,18,.8);padding:2px 8px}
+
+/* ── RANGE SELECTOR ── */
+#range-bar{display:flex;gap:0;border-bottom:1px solid var(--bo);flex-shrink:0}
+.rb-btn{flex:1;padding:7px 0;font-family:var(--fd);font-size:8px;letter-spacing:2px;border:none;border-right:1px solid var(--bo);background:transparent;color:var(--cd);cursor:pointer;transition:all .2s;text-align:center}
+.rb-btn:last-child{border-right:none}
+.rb-btn:hover{background:var(--glass);color:var(--c)}
+.rb-btn.active{background:rgba(0,245,255,.1);color:var(--c);box-shadow:inset 0 -2px 0 var(--c)}
+
+/* ── SEARCH + FILTERS ── */
+#search-section{padding:8px 10px 6px;border-bottom:1px solid var(--bo);flex-shrink:0;background:rgba(0,245,255,.01)}
+#search{width:100%;background:rgba(0,245,255,.05);border:1px solid var(--bo);color:var(--c);font-family:var(--fm);font-size:10px;padding:7px 10px;outline:none;letter-spacing:1px}
+#search::placeholder{color:var(--cd);opacity:.6}
+#search:focus{border-color:var(--c);background:rgba(0,245,255,.09);box-shadow:0 0 10px rgba(0,245,255,.1)}
+.filter-row{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.fpill{font-family:var(--fd);font-size:7px;padding:3px 9px;border:1px solid var(--bo);color:var(--cd);cursor:pointer;letter-spacing:1px;transition:all .2s;background:transparent;flex-shrink:0;clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%)}
+.fpill:hover{color:var(--c);border-color:var(--c)}
+.fpill.active{color:var(--c);border-color:var(--c);background:rgba(0,245,255,.1)}
+.fpill.mil.active{color:#ff9900;border-color:#ff9900;background:rgba(255,153,0,.1)}
+.color-pills{display:flex;gap:4px;margin-top:5px;align-items:center}
+.color-label{font-size:7px;color:var(--cd);letter-spacing:1px;margin-right:2px}
+.cpill{width:18px;height:18px;border:1px solid transparent;border-radius:2px;cursor:pointer;transition:all .2s;opacity:.5}
+.cpill.active{opacity:1;box-shadow:0 0 8px currentColor;border-color:currentColor;transform:scale(1.15)}
+
+/* ── CONTACT LIST ── */
+#list-section{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#list-section::-webkit-scrollbar{width:2px}
+#list-section::-webkit-scrollbar-thumb{background:var(--c)}
+.contact{padding:10px 14px;border-bottom:1px solid var(--bo);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s;position:relative}
+.contact:hover,.contact:active{background:rgba(0,245,255,.05)}
+.contact.sel{background:rgba(0,245,255,.07);border-left:2px solid var(--c)}
+.contact.mil{border-left:2px solid rgba(255,153,0,.5)}
+.contact.mil.sel{border-left-color:#ff9900;background:rgba(255,153,0,.05)}
+.c-icon{font-size:18px;flex-shrink:0;line-height:1}
+.c-body{flex:1;min-width:0}
+.c-name{font-size:10px;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.c-sub{font-size:8px;color:var(--cd);margin-top:2px;letter-spacing:.5px}
+.c-dist{font-family:var(--fd);font-size:11px;color:var(--a);text-shadow:0 0 6px rgba(255,183,0,.4);flex-shrink:0;text-align:right}
+.c-cat{font-family:var(--fd);font-size:6px;padding:1px 4px;border:1px solid var(--bo);color:var(--cd);clip-path:polygon(2px 0%,100% 0%,calc(100% - 2px) 100%,0% 100%);flex-shrink:0}
+.mil-tag{font-size:7px;color:#ff9900;background:rgba(255,153,0,.1);border:1px solid rgba(255,153,0,.3);padding:0 4px;font-family:var(--fd)}
+.empty{padding:30px 20px;text-align:center;color:var(--cd);font-size:9px;letter-spacing:2px;line-height:2.4;opacity:.6}
+
+/* ── DETAIL SHEET ── */
+#detail{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--panel);border-top:1px solid var(--bb);z-index:100;max-height:60vh;display:none;flex-direction:column;backdrop-filter:blur(20px)}
+#detail.open{display:flex}
+#detail::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c) 30%,var(--v) 70%,transparent);opacity:.6}
+#detail-handle{width:36px;height:3px;background:var(--bo);border-radius:2px;margin:8px auto 4px;flex-shrink:0;cursor:pointer}
+#detail-name{font-family:var(--fd);font-size:13px;font-weight:700;color:var(--c);text-shadow:0 0 12px var(--c);padding:6px 16px 0;letter-spacing:2px;flex-shrink:0}
+#detail-class{font-size:7px;letter-spacing:3px;color:var(--cd);padding:2px 16px 6px;flex-shrink:0;border-bottom:1px solid var(--bo)}
+#detail-body{overflow-y:auto;flex:1;padding:0 0 20px}
+#detail-body::-webkit-scrollbar{width:2px}
+#detail-body::-webkit-scrollbar-thumb{background:var(--c)}
+.d-section{padding:10px 16px;border-bottom:1px solid var(--bo)}
+.d-section-title{font-family:var(--fd);font-size:7px;letter-spacing:3px;color:var(--cd);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.d-section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--bo),transparent)}
+.d-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(0,245,255,.06)}
+.d-row:last-child{border-bottom:none}
+.d-label{font-size:9px;color:var(--cd)}
+.d-val{font-family:var(--fd);font-size:10px;color:var(--c);text-align:right}
+.d-val.amb{color:var(--a);text-shadow:0 0 6px rgba(255,183,0,.4)}
+#detail-close{position:absolute;top:10px;right:14px;font-size:18px;color:var(--cd);cursor:pointer;line-height:1;z-index:1}
+#detail-close:hover{color:var(--c)}
+
+/* ── GPS REQUEST ── */
+#gps-prompt{position:fixed;inset:0;background:rgba(0,4,12,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:200;padding:30px}
+#gps-prompt.hidden{display:none}
+.gps-icon{font-size:48px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.gps-title{font-family:var(--fd);font-size:13px;letter-spacing:4px;color:var(--c);text-shadow:0 0 18px var(--c);text-align:center}
+.gps-sub{font-size:9px;color:var(--cd);letter-spacing:2px;text-align:center;line-height:2;max-width:280px}
+#gps-btn{font-family:var(--fd);font-size:10px;letter-spacing:3px;padding:12px 28px;border:1px solid var(--c);background:rgba(0,245,255,.08);color:var(--c);cursor:pointer;box-shadow:0 0 20px rgba(0,245,255,.2);clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);transition:all .25s}
+#gps-btn:hover{background:rgba(0,245,255,.18);box-shadow:0 0 30px rgba(0,245,255,.4)}
+#gps-deny{font-size:8px;color:var(--cd);text-decoration:underline;cursor:pointer;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div id="gps-prompt">
+  <div class="gps-icon">📡</div>
+  <div class="gps-title">GODS EYE // MOBILE</div>
+  <div class="gps-sub">PROXIMITY RADAR REQUIRES YOUR LOCATION<br>TO SCAN FOR NEARBY SATELLITES AND AIRCRAFT</div>
+  <button id="gps-btn" onclick="MobileRadar.requestLocation()">ENABLE LOCATION</button>
+  <div id="gps-deny" onclick="MobileRadar.denyLocation()">CONTINUE WITHOUT LOCATION</div>
+</div>
+
+<div id="app">
+  <div id="hdr">
+    <div class="htitle">GODS<em> EYE</em> // MOBILE</div>
+    <div id="utc">--:--:-- UTC</div>
+  </div>
+
+  <div id="status-bar">
+    <div class="sb-dot" id="sb-dot"></div>
+    <span id="status-text">INITIALIZING</span>
+    <span id="contact-count">0 CONTACTS</span>
+  </div>
+
+  <div id="radar-wrap">
+    <canvas id="rc"></canvas>
+    <div id="your-pos">YOUR POS: ---</div>
+  </div>
+
+  <div id="range-bar">
+    <div class="rb-btn" data-range="10" onclick="MobileRadar.setRange(10)">10 KM</div>
+    <div class="rb-btn active" data-range="50" onclick="MobileRadar.setRange(50)">50 KM</div>
+    <div class="rb-btn" data-range="200" onclick="MobileRadar.setRange(200)">200 KM</div>
+    <div class="rb-btn" data-range="1000" onclick="MobileRadar.setRange(1000)">1000 KM</div>
+  </div>
+
+  <div id="search-section">
+    <input id="search" type="text" placeholder="> SEARCH NAME, NORAD, CALLSIGN, ICAO..." autocomplete="off" spellcheck="false">
+    <div class="filter-row">
+      <div class="fpill active" data-type="all" onclick="MobileRadar.setType('all')">ALL</div>
+      <div class="fpill" data-type="sat" onclick="MobileRadar.setType('sat')">SAT</div>
+      <div class="fpill" data-type="air" onclick="MobileRadar.setType('air')">FLIGHTS</div>
+      <div class="fpill mil" data-type="mil" onclick="MobileRadar.setType('mil')">🪖 MIL</div>
+      <div class="fpill" data-type="iss" onclick="MobileRadar.setType('iss')">🛰 ISS</div>
+    </div>
+    <div class="color-pills">
+      <span class="color-label">COLOR:</span>
+      <div class="cpill active" data-color="all" style="background:transparent;border-color:var(--c);color:var(--c);width:auto;padding:0 6px;font-size:7px;font-family:var(--fd);height:16px;display:flex;align-items:center" onclick="MobileRadar.setColor('all')">ALL</div>
+      <div class="cpill" data-color="cyan"  style="background:#00f5ff;color:#00f5ff" onclick="MobileRadar.setColor('cyan')"  title="Civil aircraft / Starlink"></div>
+      <div class="cpill" data-color="amber" style="background:#ffb700;color:#ffb700" onclick="MobileRadar.setColor('amber')" title="ISS / Stations"></div>
+      <div class="cpill" data-color="orange" style="background:#ff9900;color:#ff9900" onclick="MobileRadar.setColor('orange')" title="Military"></div>
+      <div class="cpill" data-color="violet" style="background:#cc88ff;color:#cc88ff" onclick="MobileRadar.setColor('violet')" title="Science sats"></div>
+      <div class="cpill" data-color="green" style="background:#88ffcc;color:#88ffcc" onclick="MobileRadar.setColor('green')"  title="Weather sats"></div>
+    </div>
+  </div>
+
+  <div id="list-section">
+    <div class="empty" id="empty-msg">📡 AWAITING LOCATION ACCESS<br>ENABLE GPS TO BEGIN SCANNING<br>OR BROWSE ALL OBJECTS BELOW</div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<div id="detail">
+  <div id="detail-handle" onclick="MobileRadar.closeDetail()"></div>
+  <span id="detail-close" onclick="MobileRadar.closeDetail()">×</span>
+  <div id="detail-name">---</div>
+  <div id="detail-class">---</div>
+  <div id="detail-body"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+<script src="src/config.local.js" onerror="window.GODS_EYE_LOCAL={}"></script>
+<script src="src/config.js"></script>
+<script src="src/utils.js"></script>
+<script>
+'use strict';
+
+const MobileRadar = (() => {
+  let userLat = null, userLon = null, locationGranted = false;
+  let satellites = [], aircraft = [];
+  let blips = [], filtered = [];
+  let rangeKm = 50, typeFilter = 'all', colorFilter = 'all';
+  let searchQuery = '';
+  let selectedBlip = null;
+  let sweepAngle = 0, animFrame = null, lastScan = 0;
+  let canvas, ctx;
+
+  const EARTH_R = 6371;
+
+  function haversine(la1, lo1, la2, lo2) {
+    const r = x => x * Math.PI / 180;
+    const a = Math.sin(r(la2-la1)/2)**2 + Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(r(lo2-lo1)/2)**2;
+    return 2 * EARTH_R * Math.asin(Math.sqrt(a));
+  }
+
+  function bearing(la1, lo1, la2, lo2) {
+    const r = x => x * Math.PI / 180;
+    const y = Math.sin(r(lo2-lo1))*Math.cos(r(la2));
+    const x = Math.cos(r(la1))*Math.sin(r(la2)) - Math.sin(r(la1))*Math.cos(r(la2))*Math.cos(r(lo2-lo1));
+    return (Math.atan2(y, x) + 2*Math.PI) % (2*Math.PI);
+  }
+
+  // ── Color mapping ──────────────────────────────────────
+  const CAT_COLOR = {
+    iss:'#ffb700', starlink:'#00f5ff', weather:'#88ffcc',
+    nav:'#ffcc88', science:'#cc88ff', iridium:'#aaaaff',
+    debris:'#555577', other:'#00ff88', aircraft:'#00f5ff',
+  };
+  const MIL_COLOR = '#ff9900';
+
+  function blipColor(b) {
+    if (b.military) return MIL_COLOR;
+    return CAT_COLOR[b.cat] || '#00f5ff';
+  }
+
+  function colorMatchesFilter(b) {
+    if (colorFilter === 'all') return true;
+    const col = blipColor(b);
+    if (colorFilter === 'cyan')   return col === '#00f5ff';
+    if (colorFilter === 'amber')  return col === '#ffb700' || col === '#ffcc88';
+    if (colorFilter === 'orange') return b.military;
+    if (colorFilter === 'violet') return col === '#cc88ff' || col === '#aaaaff';
+    if (colorFilter === 'green')  return col === '#88ffcc';
+    return true;
+  }
+
+  // ── Init canvas ────────────────────────────────────────
+  function initCanvas() {
+    canvas = document.getElementById('rc');
+    const sz = Math.min(window.innerWidth - 24, 360);
+    canvas.width = canvas.height = sz;
+    ctx = canvas.getContext('2d');
+    canvas.addEventListener('click', onCanvasClick);
+  }
+
+  function onCanvasClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = canvas.width/2, cy = canvas.height/2, R = cx - 12;
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width) - cx;
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height) - cy;
+    let closest = null, bestDist = 18;
+    blips.filter(b => colorMatchesFilter(b)).forEach(b => {
+      if (!locationGranted && b.dist === undefined) return;
+      const normDist = locationGranted ? Math.min((b.dist||0) / rangeKm, 1) : 0.5 + Math.random()*0.3;
+      const bx = Math.cos(b.bearing - Math.PI/2) * normDist * R;
+      const by = Math.sin(b.bearing - Math.PI/2) * normDist * R;
+      const d = Math.sqrt((mx-bx)**2 + (my-by)**2);
+      if (d < bestDist) { bestDist = d; closest = b; }
+    });
+    if (closest) openDetail(closest);
+  }
+
+  // ── Radar draw ─────────────────────────────────────────
+  function drawRadar() {
+    if (!ctx) return;
+    const W = canvas.width, H = canvas.height;
+    const cx = W/2, cy = H/2, R = cx - 12;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Background circle
+    ctx.fillStyle = '#000508';
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill();
+
+    // Range rings
+    for (let i = 1; i <= 4; i++) {
+      const r = R/4 * i;
+      ctx.strokeStyle = `rgba(0,245,255,${i===4?0.25:0.1})`;
+      ctx.lineWidth = i === 4 ? 1 : 0.5;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = 'rgba(0,180,200,0.5)';
+      ctx.font = '8px "Orbitron",monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(Math.round(rangeKm/4*i)+'km', cx+3, cy-r+11);
+    }
+
+    // Crosshairs
+    ctx.strokeStyle = 'rgba(0,245,255,0.07)'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx,cy-R); ctx.lineTo(cx,cy+R); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy); ctx.stroke();
+
+    // Sweep
+    sweepAngle += 0.03;
+    if (sweepAngle > Math.PI*2) sweepAngle -= Math.PI*2;
+    ctx.save();
+    ctx.strokeStyle = '#00f5ff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.lineTo(cx + Math.cos(sweepAngle)*R, cy + Math.sin(sweepAngle)*R); ctx.stroke();
+    for (let i = 0; i < 35; i++) {
+      const a = sweepAngle - i*0.02;
+      ctx.strokeStyle = `rgba(0,245,255,${(35-i)/35*0.08})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.lineTo(cx + Math.cos(a)*R, cy + Math.sin(a)*R); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Blips
+    const visibleBlips = blips.filter(b => colorMatchesFilter(b));
+    visibleBlips.forEach(b => {
+      const normDist = locationGranted ? Math.min(b.dist/rangeKm, 1) : 0.2 + Math.random()*0.7;
+      const bx = cx + Math.cos(b.bearing - Math.PI/2) * normDist * R;
+      const by = cy + Math.sin(b.bearing - Math.PI/2) * normDist * R;
+      const col = blipColor(b);
+      const angleDiff = Math.abs(((sweepAngle - b.bearing + Math.PI/2) + Math.PI*3) % (Math.PI*2) - Math.PI);
+      const bright = angleDiff < 0.6 ? 1 : 0.55;
+      const isSelected = selectedBlip && selectedBlip.id === b.id;
+      const sz = b.cat === 'iss' ? 6 : b.type === 'air' ? 5 : 3;
+
+      ctx.fillStyle = col; ctx.globalAlpha = bright;
+      ctx.shadowColor = col; ctx.shadowBlur = isSelected ? 12 : 5;
+      ctx.beginPath(); ctx.arc(bx, by, sz, 0, Math.PI*2); ctx.fill();
+
+      if (isSelected) {
+        ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.arc(bx, by, sz+6, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = col; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(bx-sz-12,by); ctx.lineTo(bx-sz-4,by); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx+sz+4,by);  ctx.lineTo(bx+sz+12,by); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx,by-sz-12); ctx.lineTo(bx,by-sz-4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx,by+sz+4);  ctx.lineTo(bx,by+sz+12); ctx.stroke();
+      }
+
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    });
+
+    // Center dot (you)
+    ctx.fillStyle = locationGranted ? '#ffb700' : '#333';
+    ctx.shadowColor = '#ffb700'; ctx.shadowBlur = locationGranted ? 10 : 0;
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Cardinals
+    ctx.fillStyle = 'rgba(0,180,200,0.5)'; ctx.font = '9px "Orbitron",monospace'; ctx.textAlign = 'center';
+    ctx.fillText('N', cx, cy-R+14);
+    ctx.fillText('S', cx, cy+R-4);
+    ctx.textAlign = 'left';  ctx.fillText('E', cx+R-16, cy+4);
+    ctx.textAlign = 'right'; ctx.fillText('W', cx-R+16, cy+4);
+
+    // Clip to circle
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Outer ring
+    ctx.strokeStyle = 'rgba(0,245,255,0.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // ── Scan ───────────────────────────────────────────────
+  function scan() {
+    blips = [];
+    const addBlip = (type, name, cat, lat, lon, alt, vel, id, military, extra) => {
+      const dist = locationGranted ? haversine(userLat, userLon, lat, lon) : null;
+      const brg  = locationGranted ? bearing(userLat, userLon, lat, lon) : Math.random()*Math.PI*2;
+      if (locationGranted && dist > rangeKm) return;
+      if (!locationGranted && blips.length > 400) return;
+      blips.push({ type, name, cat, lat, lon, alt, vel, id, military, dist, bearing: brg, ...extra });
+    };
+
+    satellites.forEach((s, i) => {
+      if (s.lat == null) return;
+      addBlip('sat', s.name, s.cat, s.lat, s.lon, s.alt, s.vel,
+        `NORAD-${s.id}`, false, { norad: s.id, tle1: s.tle1, tle2: s.tle2, satrec: s.satrec });
+    });
+
+    aircraft.forEach(a => {
+      if (a.lat == null) return;
+      const cs = (a.callsign || 'UNKNOWN').trim();
+      addBlip('air', cs, 'aircraft', a.lat, a.lon,
+        a.baro_altitude || a.geo_altitude || 0,
+        a.velocity, `ICAO-${a.icao24}`,
+        isMilitary(a), { icao24: a.icao24, origin: a.origin_country, heading: a.true_track, squawk: a.squawk, velocity: a.velocity });
+    });
+
+    blips.sort((a, b) => (a.dist||999) - (b.dist||999));
+    lastScan = Date.now();
+    applyFilters();
+  }
+
+  function isMilitary(ac) {
+    const cs = (ac.callsign||'').trim().toUpperCase();
+    return (CONFIG.militaryPrefixes||[]).some(p => cs.startsWith(p));
+  }
+
+  // ── Filters ────────────────────────────────────────────
+  function applyFilters() {
+    const q = searchQuery.toUpperCase();
+    filtered = blips.filter(b => {
+      if (typeFilter === 'sat' && b.type !== 'sat') return false;
+      if (typeFilter === 'air' && b.type !== 'air') return false;
+      if (typeFilter === 'mil' && !b.military) return false;
+      if (typeFilter === 'iss' && b.cat !== 'iss') return false;
+      if (!colorMatchesFilter(b)) return false;
+      if (q && !b.name.toUpperCase().includes(q) && !b.id.toUpperCase().includes(q)) return false;
+      return true;
+    });
+    renderList();
+    updateStatus();
+  }
+
+  // ── List ───────────────────────────────────────────────
+  function renderList() {
+    const el = document.getElementById('list');
+    const empty = document.getElementById('empty-msg');
+    if (filtered.length === 0) {
+      el.innerHTML = '';
+      empty.style.display = 'block';
+      empty.innerHTML = searchQuery || typeFilter !== 'all' || colorFilter !== 'all'
+        ? '🔍 NO MATCHES FOUND<br>TRY ADJUSTING FILTERS'
+        : locationGranted
+          ? `📡 NO CONTACTS WITHIN ${rangeKm}KM<br>TRY A LARGER RANGE`
+          : '📡 AWAITING LOCATION ACCESS<br>ENABLE GPS TO BEGIN SCANNING<br>OR BROWSE ALL OBJECTS BELOW';
+      return;
+    }
+    empty.style.display = 'none';
+    const items = filtered.slice(0, 300);
+    el.innerHTML = items.map((b, i) => {
+      const isSel = selectedBlip && selectedBlip.id === b.id;
+      const dist = b.dist != null ? (b.dist < 1 ? (b.dist*1000).toFixed(0)+'m' : b.dist.toFixed(1)+'km') : '---';
+      const alt  = b.alt ? (b.type==='air' ? Math.round(b.alt)+'m' : b.alt.toFixed(0)+'km') : '---';
+      const brg  = b.bearing != null ? Math.round(b.bearing*180/Math.PI)+'°' : '---';
+      const col  = blipColor(b);
+      const milTag = b.military ? '<span class="mil-tag">🪖 MIL</span>' : '';
+      const icon = b.cat==='iss' ? '🛰️' : b.type==='air' ? (b.military?'🪖':'✈️') : (CONFIG.catMeta[b.cat]?.icon||'🛰️');
+      return `<div class="contact${isSel?' sel':''}${b.military?' mil':''}" data-idx="${i}" onclick="MobileRadar.selectBlip(${i})">
+        <div class="c-icon" style="filter:drop-shadow(0 0 4px ${col})">${icon}</div>
+        <div class="c-body">
+          <div class="c-name" style="color:${col}">${b.name}${milTag}</div>
+          <div class="c-sub">${b.id} · ALT:${alt} · BRG:${brg}</div>
+        </div>
+        <div class="c-dist" style="color:${b.dist!=null?col:'rgba(0,245,255,.3)'}">${dist}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function selectBlip(listIdx) {
+    const b = filtered[listIdx];
+    if (!b) return;
+    selectedBlip = b;
+    openDetail(b);
+    renderList();
+  }
+
+  // ── Detail Sheet ───────────────────────────────────────
+  function openDetail(b) {
+    selectedBlip = b;
+    const col = blipColor(b);
+    const icon = b.cat==='iss'?'🛰️':b.type==='air'?(b.military?'🪖':'✈️'):(CONFIG.catMeta[b.cat]?.icon||'🛰️');
+    document.getElementById('detail-name').innerHTML = `${icon} <span style="color:${col}">${b.name}</span>${b.military?'<span class="mil-tag" style="margin-left:8px">🪖 MILITARY</span>':''}`;
+    document.getElementById('detail-class').textContent = b.type==='sat' ? 'UNCLASSIFIED // PUBLIC DATA // CELESTRAK' : 'UNCLASSIFIED // OPENSKY NETWORK';
+
+    const dist  = b.dist != null ? (b.dist<1?(b.dist*1000).toFixed(0)+'m':b.dist.toFixed(2)+'km') : '---';
+    const alt   = b.alt ? (b.type==='air'?Math.round(b.alt)+'m':b.alt.toFixed(1)+'km') : '---';
+    const vel   = b.vel ? (b.type==='air'?Math.round(b.vel*1.944)+' kts':((b.vel*3600).toFixed(0)+' km/h')) : (b.velocity?Math.round(b.velocity*1.944)+' kts':'---');
+    const brg   = b.bearing!=null?Math.round(b.bearing*180/Math.PI)+'°':'---';
+    const latS  = b.lat!=null?b.lat.toFixed(4)+'°':'---';
+    const lonS  = b.lon!=null?b.lon.toFixed(4)+'°':'---';
+
+    let html = `<div class="d-section">
+      <div class="d-section-title">// POSITION</div>
+      <div class="d-row"><span class="d-label">DISTANCE</span><span class="d-val amb">${dist}</span></div>
+      <div class="d-row"><span class="d-label">BEARING</span><span class="d-val">${brg}</span></div>
+      <div class="d-row"><span class="d-label">LATITUDE</span><span class="d-val">${latS}</span></div>
+      <div class="d-row"><span class="d-label">LONGITUDE</span><span class="d-val">${lonS}</span></div>
+      <div class="d-row"><span class="d-label">ALTITUDE</span><span class="d-val amb">${alt}</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">// TELEMETRY</div>
+      <div class="d-row"><span class="d-label">VELOCITY</span><span class="d-val">${vel}</span></div>`;
+
+    if (b.type === 'sat') {
+      const period = (b.alt && b.vel) ? (2*Math.PI*(6371+b.alt)/b.vel/60).toFixed(1)+' min' : '---';
+      const inc    = b.satrec ? (b.satrec.inclo*180/Math.PI).toFixed(2)+'°' : '---';
+      const orb    = b.alt < 2000 ? 'LEO' : b.alt < 35786 ? 'MEO' : 'GEO';
+      const cat    = CONFIG.catMeta[b.cat] || CONFIG.catMeta.other;
+      html += `
+      <div class="d-row"><span class="d-label">PERIOD</span><span class="d-val">${period}</span></div>
+      <div class="d-row"><span class="d-label">INCLINATION</span><span class="d-val">${inc}</span></div>
+      <div class="d-row"><span class="d-label">ORBIT CLASS</span><span class="d-val" style="color:#00d4ff">${orb}</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">// CLASSIFICATION</div>
+      <div class="d-row"><span class="d-label">NORAD ID</span><span class="d-val">${b.norad||'---'}</span></div>
+      <div class="d-row"><span class="d-label">CATEGORY</span><span class="d-val">${cat.purpose}</span></div>
+      <div class="d-row"><span class="d-label">STATUS</span><span class="d-val" style="color:#00ffcc">TRACKED</span></div>
+    </div>`;
+    } else {
+      const fl = b.alt ? 'FL'+Math.round(b.alt*3.28084/100) : '---';
+      html += `
+      <div class="d-row"><span class="d-label">FLIGHT LEVEL</span><span class="d-val">${fl}</span></div>
+      <div class="d-row"><span class="d-label">HEADING</span><span class="d-val">${b.heading?b.heading.toFixed(0)+'°':'---'}</span></div>
+      <div class="d-row"><span class="d-label">SQUAWK</span><span class="d-val ${b.squawk==='7700'||b.squawk==='7500'?'amb':''}">${b.squawk||'---'}</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">// IDENTIFICATION</div>
+      <div class="d-row"><span class="d-label">ICAO24</span><span class="d-val">${b.icao24||'---'}</span></div>
+      <div class="d-row"><span class="d-label">COUNTRY</span><span class="d-val">${b.origin||'---'}</span></div>
+      <div class="d-row"><span class="d-label">MILITARY</span><span class="d-val" style="color:${b.military?'#ff9900':'#00d4ff'}">${b.military?'YES — FLAGGED':'NO'}</span></div>
+    </div>`;
+    }
+
+    document.getElementById('detail-body').innerHTML = html;
+    document.getElementById('detail').classList.add('open');
+    renderList();
+  }
+
+  function closeDetail() {
+    document.getElementById('detail').classList.remove('open');
+    selectedBlip = null;
+    renderList();
+  }
+
+  // ── Location ───────────────────────────────────────────
+  async function requestLocation() {
+    document.getElementById('gps-prompt').classList.add('hidden');
+    updateStatus('LOCATING...');
+    try {
+      const pos = await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      userLat = pos.coords.latitude;
+      userLon = pos.coords.longitude;
+      locationGranted = true;
+      document.getElementById('your-pos').textContent = `YOUR POS: ${userLat.toFixed(4)}° ${userLon.toFixed(4)}°`;
+    } catch (e) {
+      locationGranted = false;
+      document.getElementById('your-pos').textContent = 'YOUR POS: GPS OFFLINE';
+    }
+    loadData();
+  }
+
+  function denyLocation() {
+    document.getElementById('gps-prompt').classList.add('hidden');
+    loadData();
+  }
+
+  // ── Data Load ──────────────────────────────────────────
+  async function loadData() {
+    updateStatus('LOADING SATELLITE DATA...');
+    try {
+      const groups = CONFIG.tleGroups.slice(0, 6); // cap for mobile
+      const results = await Promise.allSettled(groups.map(g =>
+        fetch(CONFIG.proxy + encodeURIComponent(g.url))
+          .then(r => r.text())
+          .then(t => parseTLEs(t, g.cat))
+          .catch(() => [])
+      ));
+      results.forEach(r => { if (r.status === 'fulfilled') satellites = satellites.concat(r.value); });
+      if (satellites.length < 5) satellites = parseTLEs(CONFIG.fallbackTLE, 'other');
+    } catch (e) {
+      satellites = parseTLEs(CONFIG.fallbackTLE, 'other');
+    }
+    propagateSats();
+    updateStatus('LOADING AIRCRAFT...');
+    try {
+      const res = await fetch(CONFIG.opensky);
+      if (res.ok) {
+        const data = await res.json();
+        aircraft = (data.states||[]).filter(s=>s[6]!=null&&s[5]!=null).slice(0,500).map(s=>({
+          icao24:s[0],callsign:(s[1]||'').trim(),origin_country:s[2],
+          lon:s[5],lat:s[6],baro_altitude:s[7],geo_altitude:s[13],
+          velocity:s[9],true_track:s[10],squawk:s[14],
+        }));
+      }
+    } catch (e) {}
+    scan();
+    startLoop();
+    updateStatus(locationGranted ? 'SCANNING' : 'OFFLINE — GPS NEEDED');
+  }
+
+  function parseTLEs(raw, cat) {
+    const lines = raw.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+    const sats = [];
+    for (let i = 0; i+2 < lines.length; i++) {
+      if (lines[i+1].startsWith('1 ') && lines[i+2].startsWith('2 ')) {
+        try {
+          const sr = satellite.twoline2satrec(lines[i+1], lines[i+2]);
+          sats.push({ name:lines[i].trim(), tle1:lines[i+1], tle2:lines[i+2], satrec:sr, cat,
+            id:parseInt(lines[i+1].substring(2,7)) });
+          i += 2;
+        } catch(e) {}
+      }
+    }
+    return sats;
+  }
+
+  function propagateSats() {
+    const now = new Date();
+    satellites.forEach(s => {
+      try {
+        const pv = satellite.propagate(s.satrec, now);
+        if (!pv.position) return;
+        const gmst = satellite.gstime(now);
+        const geo  = satellite.eciToGeodetic(pv.position, gmst);
+        s.lat = satellite.degreesLat(geo.latitude);
+        s.lon = satellite.degreesLong(geo.longitude);
+        s.alt = geo.height;
+        const v = pv.velocity;
+        s.vel = v ? Math.sqrt(v.x**2+v.y**2+v.z**2) : 0;
+      } catch(e) {}
+    });
+  }
+
+  // ── Controls ───────────────────────────────────────────
+  function setRange(km) {
+    rangeKm = km;
+    document.querySelectorAll('.rb-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.range)===km));
+    scan();
+  }
+
+  function setType(t) {
+    typeFilter = t;
+    document.querySelectorAll('.fpill').forEach(p => p.classList.toggle('active', p.dataset.type===t));
+    applyFilters();
+  }
+
+  function setColor(c) {
+    colorFilter = c;
+    document.querySelectorAll('.cpill').forEach(p => p.classList.toggle('active', p.dataset.color===c));
+    applyFilters();
+  }
+
+  function updateStatus(msg) {
+    const dot  = document.getElementById('sb-dot');
+    const text = document.getElementById('status-text');
+    const cnt  = document.getElementById('contact-count');
+    if (msg) { text.textContent = msg; return; }
+    const online = locationGranted && satellites.length > 0;
+    dot.className  = 'sb-dot' + (online ? '' : ' off');
+    text.textContent = online ? 'SCANNING' : satellites.length > 0 ? 'LOADED — GPS OFFLINE' : 'INITIALIZING';
+    cnt.textContent  = filtered.length + ' CONTACTS';
+  }
+
+  // ── Clock ──────────────────────────────────────────────
+  function tick() {
+    document.getElementById('utc').textContent = Utils.formatUTC();
+    // Re-propagate every 30s
+    if (Date.now() - lastScan > 30000) {
+      propagateSats(); scan();
+    }
+  }
+
+  // ── Search ─────────────────────────────────────────────
+  function handleSearch(q) {
+    searchQuery = q;
+    applyFilters();
+  }
+
+  // ── Loop ───────────────────────────────────────────────
+  function startLoop() {
+    if (animFrame) cancelAnimationFrame(animFrame);
+    function loop() {
+      animFrame = requestAnimationFrame(loop);
+      drawRadar();
+    }
+    loop();
+  }
+
+  // ── Boot ───────────────────────────────────────────────
+  function init() {
+    initCanvas();
+    document.getElementById('search').addEventListener('input', e => handleSearch(e.target.value));
+    setInterval(tick, 1000);
+    drawRadar(); // draw empty radar immediately
+  }
+
+  return {
+    init, requestLocation, denyLocation, selectBlip, closeDetail,
+    setRange, setType, setColor,
+  };
+})();
+
+MobileRadar.init();
+</script>
+</body>
+</html>

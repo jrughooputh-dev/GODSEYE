@@ -59,7 +59,7 @@ const UI = (() => {
         const phase = t * 0.04 + i * 0.9;
         const r = 10 + Math.sin(phase) * 4;
         const alpha = 0.07 + Math.sin(phase) * 0.04;
-        tctx.strokeStyle = `rgba(255,${20 + i * 8},0,${alpha})`;
+        tctx.strokeStyle = `rgba(0,255,${180 + i * 5},${alpha})`;
         tctx.lineWidth = 0.5;
         tctx.beginPath(); tctx.arc(sc.x, sc.y, r, 0, Math.PI * 2); tctx.stroke();
       }
@@ -73,25 +73,25 @@ const UI = (() => {
     tctx.save();
     tctx.translate(screen.x, screen.y);
     tctx.rotate(t * 0.008);
-    tctx.strokeStyle = `rgba(255,40,40,${alpha * 0.5})`;
+    tctx.strokeStyle = `rgba(0,255,204,${alpha * 0.4})`;
     tctx.lineWidth = 1; tctx.setLineDash([6, 10]);
     tctx.beginPath(); tctx.arc(0, 0, pulse * 2.8, 0, Math.PI * 2); tctx.stroke();
     tctx.setLineDash([]);
     tctx.restore();
-    tctx.strokeStyle = `rgba(255,60,20,${alpha})`; tctx.lineWidth = 1.5;
+    tctx.strokeStyle = `rgba(0,255,200,${alpha})`; tctx.lineWidth = 1.5;
     tctx.beginPath(); tctx.arc(screen.x, screen.y, pulse, 0, Math.PI * 2); tctx.stroke();
     const arm = pulse * 2.2, gap = pulse * 1.15;
-    tctx.strokeStyle = `rgba(255,80,30,${alpha * 0.8})`; tctx.lineWidth = 1;
+    tctx.strokeStyle = `rgba(0,240,200,${alpha * 0.8})`; tctx.lineWidth = 1;
     [[screen.x - arm, screen.y, screen.x - gap, screen.y],
      [screen.x + gap, screen.y, screen.x + arm, screen.y],
      [screen.x, screen.y - arm, screen.x, screen.y - gap],
      [screen.x, screen.y + gap, screen.x, screen.y + arm]].forEach(([x1,y1,x2,y2]) => {
        tctx.beginPath(); tctx.moveTo(x1, y1); tctx.lineTo(x2, y2); tctx.stroke();
      });
-    tctx.fillStyle = `rgba(255,60,40,${alpha})`;
+    tctx.fillStyle = `rgba(0,255,204,${alpha})`;
     tctx.font = '8px "Orbitron", monospace';
     tctx.fillText('TARGET LOCKED', screen.x + pulse * 1.3, screen.y - 8);
-    tctx.fillStyle = `rgba(255,120,80,0.7)`;
+    tctx.fillStyle = `rgba(0,220,180,0.7)`;
     tctx.font = '7px "Share Tech Mono", monospace';
     tctx.fillText(name, screen.x + pulse * 1.3, screen.y + 6);
   }
@@ -116,7 +116,7 @@ const UI = (() => {
       document.getElementById('god-overlay').classList.add('on');
       document.getElementById('gl-tl').textContent = '⚠ GLOBAL THREAT ASSESSMENT — ACTIVE';
       document.getElementById('gl-br').textContent = 'DEFCON STATUS: ELEVATED';
-      document.getElementById('main-title').innerHTML = 'GODS<em> EYE</em> // <span style="color:#ff1744;text-shadow:0 0 18px #ff1744">GOD VIEW — WAR MODE</span>';
+      document.getElementById('main-title').innerHTML = 'GODS<em> EYE</em> // <span style="color:#00ffcc;text-shadow:0 0 18px rgba(0,255,204,.8)">GOD VIEW — WAR MODE</span>';
       document.getElementById('ftr-label').textContent = 'GODS EYE v5.2 // GOD VIEW ACTIVE // ALL OBJECTS FLAGGED AS THREATS';
       document.getElementById('rph-label').textContent = '// THREAT TELEMETRY';
       document.getElementById('panel-label').textContent = '// THREAT OBJECTS';
@@ -442,17 +442,25 @@ const UI = (() => {
     document.getElementById('dbody').innerHTML = `<div class="iss-loading"><div class="iss-loading-dot"></div><span>FETCHING CREW DATA...</span></div>`;
     await Satellites.fetchISSData();
     const lat = sat.lat ?? 0, lon = sat.lon ?? 0, alt = sat.alt ?? 400, vel = sat.vel ?? 0;
-    const speedKmh = (vel * 3600 / 1000).toFixed(0);
-    const period   = (alt > 0 && vel > 0) ? (2 * Math.PI * (6371 + alt) / vel / 60).toFixed(1) : '---';
-    const inc      = sat.satrec ? (sat.satrec.inclo * 180 / Math.PI).toFixed(2) : '---';
+    const speedKmh = (vel * 3600).toFixed(0);
+    const speedKms = vel.toFixed(3);
+    const period   = (alt > 0 && vel > 0) ? (2 * Math.PI * (6371 + alt) / vel / 60).toFixed(2) : '---';
+    const inc      = sat.satrec ? (sat.satrec.inclo * 180 / Math.PI).toFixed(2) : '51.64';
+    const ecc      = sat.satrec ? sat.satrec.ecco.toFixed(6) : '---';
+    const mm       = sat.satrec ? (sat.satrec.no * 1440 / (2 * Math.PI)).toFixed(4) : '---';
+    const raan     = sat.satrec ? (sat.satrec.nodeo * 180 / Math.PI).toFixed(2) : '---';
     const crew     = Satellites.issData.crew;
+    const altFt    = (alt * 3280.84).toFixed(0);
 
     document.getElementById('dbody').innerHTML = `
       <div class="dossier-header">
-        <div class="dossier-classification">UNCLASSIFIED // PUBLIC DATA</div>
-        <div class="dossier-id">ISS (ZARYA) · NORAD ${sat.id || '25544'}</div>
+        <div class="dossier-classification">UNCLASSIFIED // PUBLIC DATA // NASA / ESA / ROSCOSMOS</div>
+        <div class="dossier-id">ISS (ZARYA) · NORAD ${sat.id || '25544'} · OBJECT 1998-067A</div>
       </div>
-      <div class="iss-badge"><div class="iss-badge-title">INTERNATIONAL SPACE STATION</div><div class="iss-badge-sub">ALTITUDE ${alt.toFixed(0)} KM · ${speedKmh} KM/H</div></div>
+      <div class="iss-badge">
+        <div class="iss-badge-title">INTERNATIONAL SPACE STATION</div>
+        <div class="iss-badge-sub">ALT ${alt.toFixed(0)} KM · ${speedKmh} KM/H · INCL ${inc}°</div>
+      </div>
       <div class="iss-pos-row">
         <div class="iss-pos-item"><div class="iss-pos-val">${lat.toFixed(2)}°</div><div class="iss-pos-label">LATITUDE</div></div>
         <div class="iss-pos-item"><div class="iss-pos-val">${lon.toFixed(2)}°</div><div class="iss-pos-label">LONGITUDE</div></div>
@@ -461,18 +469,27 @@ const UI = (() => {
       <div class="dblock">
         <div class="dbtitle">// ORBITAL MECHANICS</div>
         <div class="drow"><span class="dl">VELOCITY</span><span class="dv amb">${speedKmh} km/h</span></div>
-        <div class="drow"><span class="dl">PERIOD</span><span class="dv">${period} min</span></div>
+        <div class="drow"><span class="dl">SPEED (km/s)</span><span class="dv">${speedKms} km/s</span></div>
+        <div class="drow"><span class="dl">ALTITUDE (ft)</span><span class="dv">${altFt} ft</span></div>
+        <div class="drow"><span class="dl">ORBITAL PERIOD</span><span class="dv">${period} min</span></div>
         <div class="drow"><span class="dl">INCLINATION</span><span class="dv">${inc}°</span></div>
+        <div class="drow"><span class="dl">ECCENTRICITY</span><span class="dv">${ecc}</span></div>
+        <div class="drow"><span class="dl">MEAN MOTION</span><span class="dv">${mm} rev/day</span></div>
+        <div class="drow"><span class="dl">RAAN</span><span class="dv">${raan}°</span></div>
         <div class="drow"><span class="dl">ORBIT CLASS</span><span class="dv blu">LEO</span></div>
       </div>
       <div class="dblock">
-        <div class="dbtitle">// CREW MANIFEST — ${crew.length > 0 ? crew.length + ' ABOARD' : 'DATA UNAVAILABLE'}</div>
+        <div class="dbtitle">// CREW MANIFEST — ${crew.length > 0 ? crew.length + ' PERSONNEL ABOARD' : 'DATA UNAVAILABLE'}</div>
         ${crew.length > 0
           ? crew.map(p => `<div class="iss-crew-row"><span class="iss-crew-icon">👨‍🚀</span><span class="iss-crew-name">${p.name}</span><span class="iss-crew-craft">ISS</span></div>`).join('')
-          : '<div class="iss-crew-row"><span class="iss-crew-name" style="opacity:.4">CREW DATA OFFLINE</span></div>'}
+          : '<div class="iss-crew-row"><span class="iss-crew-name" style="opacity:.4">CREW DATA OFFLINE — OPEN-NOTIFY UNAVAILABLE</span></div>'}
       </div>
-      <div id="mmc"><div class="dbtitle">// GROUND TRACK</div><canvas id="mmcanvas" width="264" height="100"></canvas></div>
-      <div id="tleblock"><div class="dbtitle">// TLE ELEMENTS</div><div class="tleline">${sat.tle1}</div><div class="tleline" style="margin-top:3px">${sat.tle2}</div></div>`;
+      <div id="mmc"><div class="dbtitle">// GROUND TRACK</div><canvas id="mmcanvas" width="264" height="110"></canvas></div>
+      <div id="tleblock">
+        <div class="dbtitle">// TLE ELEMENTS</div>
+        <div class="tleline">${sat.tle1 || '---'}</div>
+        <div class="tleline" style="margin-top:4px">${sat.tle2 || '---'}</div>
+      </div>`;
     drawMiniMap(sat);
     document.getElementById('poslabel').textContent = `LAT: ${lat.toFixed(2)} LON: ${lon.toFixed(2)}`;
   }
@@ -576,16 +593,35 @@ const UI = (() => {
   }
 
   function _airTelemetryHTML(ac, altM, altFt, velKts, velKmh) {
+    const lat = ac.lat != null ? ac.lat.toFixed(4) + '°' : '---';
+    const lon = ac.lon != null ? ac.lon.toFixed(4) + '°' : '---';
+    const fl  = altM ? 'FL' + Math.round(altM * 3.28084 / 100) : '---';
+    const squawkClass = (ac.squawk === '7700' || ac.squawk === '7500' || ac.squawk === '7600') ? 'red' : 'amb';
+    const squawkNote  = ac.squawk === '7700' ? ' ⚠ EMERGENCY' : ac.squawk === '7500' ? ' ⚠ HIJACK' : ac.squawk === '7600' ? ' ⚠ COMMS FAIL' : '';
     return `
       <div class="dblock">
+        <div class="dbtitle">// LIVE POSITION</div>
+        <div class="drow"><span class="dl">LATITUDE</span><span class="dv">${lat}</span></div>
+        <div class="drow"><span class="dl">LONGITUDE</span><span class="dv">${lon}</span></div>
+        <div class="drow"><span class="dl">ALTITUDE</span><span class="dv amb">${altM ? Math.round(altM) + ' m' : '---'}</span></div>
+        <div class="drow"><span class="dl">FLIGHT LEVEL</span><span class="dv amb">${fl}</span></div>
+        <div class="drow"><span class="dl">ALT (ft)</span><span class="dv">${altFt ? altFt.toLocaleString() + ' ft' : '---'}</span></div>
+      </div>
+      <div class="dblock">
         <div class="dbtitle">// LIVE TELEMETRY</div>
-        <div class="drow"><span class="dl">ALTITUDE</span><span class="dv amb">${altM ? Math.round(altM) + ' m / FL' + Math.round(altM * 3.28084 / 100) : '---'}</span></div>
-        <div class="drow"><span class="dl">SPEED</span><span class="dv">${velKmh ? velKmh + ' km/h / ' + velKts + ' kts' : '---'}</span></div>
+        <div class="drow"><span class="dl">SPEED</span><span class="dv">${velKmh ? velKmh + ' km/h' : '---'}</span></div>
+        <div class="drow"><span class="dl">SPEED (kts)</span><span class="dv">${velKts ? velKts + ' kts' : '---'}</span></div>
         <div class="drow"><span class="dl">HEADING</span><span class="dv">${ac.true_track ? ac.true_track.toFixed(1) + '°' : '---'}</span></div>
         <div class="drow"><span class="dl">VERT RATE</span><span class="dv">${ac.vertical_rate ? (ac.vertical_rate > 0 ? '▲ ' : '▼ ') + Math.abs(ac.vertical_rate).toFixed(1) + ' m/s' : '---'}</span></div>
-        <div class="drow"><span class="dl">SQUAWK</span><span class="dv ${ac.squawk === '7700' || ac.squawk === '7500' ? 'red' : 'amb'}">${ac.squawk || '---'}</span></div>
+        <div class="drow"><span class="dl">SQUAWK</span><span class="dv ${squawkClass}">${ac.squawk || '---'}${squawkNote}</span></div>
+        <div class="drow"><span class="dl">ON GROUND</span><span class="dv ${ac.on_ground ? 'amb' : 'blu'}">${ac.on_ground ? '▣ GROUND' : '▲ AIRBORNE'}</span></div>
+      </div>
+      <div class="dblock">
+        <div class="dbtitle">// IDENTIFICATION</div>
+        <div class="drow"><span class="dl">ICAO24</span><span class="dv">${ac.icao24 || '---'}</span></div>
         <div class="drow"><span class="dl">COUNTRY</span><span class="dv">${ac.origin_country || '---'}</span></div>
-        <div class="drow"><span class="dl">ON GROUND</span><span class="dv ${ac.on_ground ? 'amb' : 'blu'}">${ac.on_ground ? 'YES' : 'AIRBORNE'}</span></div>
+        <div class="drow"><span class="dl">MILITARY</span><span class="dv ${ac.military ? 'teal' : 'blu'}">${ac.military ? '🪖 YES — FLAGGED' : 'NO'}</span></div>
+        <div class="drow"><span class="dl">SOURCE</span><span class="dv" style="font-size:8px">${ac.source === 'adsbx' ? 'ADS-B EXCHANGE' : 'OPENSKY NETWORK'}</span></div>
       </div>`;
   }
 
@@ -601,43 +637,68 @@ const UI = (() => {
     const ot  = alt < 2000 ? 'LEO' : alt < 35786 ? 'MEO' : 'GEO';
     const inc = sat.satrec ? (sat.satrec.inclo * 180 / Math.PI).toFixed(2) : '---';
     const ecc = sat.satrec ? sat.satrec.ecco.toFixed(6) : '---';
+    const mm  = sat.satrec ? (sat.satrec.no * 1440 / (2 * Math.PI)).toFixed(4) : '---';
+    const raan= sat.satrec ? (sat.satrec.nodeo * 180 / Math.PI).toFixed(2) : '---';
+    const argp= sat.satrec ? (sat.satrec.argpo * 180 / Math.PI).toFixed(2) : '---';
+    // Launch year from TLE epoch
+    const epochStr = sat.tle1 ? sat.tle1.substring(18, 32).trim() : '';
+    const epochYY  = epochStr ? parseInt(epochStr.substring(0, 2)) : null;
+    const launchYr = epochYY !== null ? (epochYY >= 57 ? 1900 + epochYY : 2000 + epochYY) : '---';
     const meta= CONFIG.catMeta[sat.cat] || CONFIG.catMeta.other;
 
     document.getElementById('dname').innerHTML = `
       <div class="sat-header">
         <span class="sat-header-icon">${meta.icon}</span>
-        <span class="sat-header-name">SAT-${sat.id}</span>
+        <span class="sat-header-name">${sat.name.length > 20 ? 'SAT-' + sat.id : sat.name}</span>
       </div>`;
 
     document.getElementById('dbody').innerHTML = `
       <div class="dossier-header">
-        <div class="dossier-classification">${godMode ? 'TOP SECRET // NOFORN' : 'UNCLASSIFIED // PUBLIC DATA'}</div>
+        <div class="dossier-classification">${godMode ? 'TOP SECRET // SI-TK // NOFORN' : 'UNCLASSIFIED // PUBLIC DATA // CELESTRAK'}</div>
         <div class="dossier-id">NORAD ${sat.id} · ${sat.name}</div>
       </div>
       <div class="sat-purpose-badge">${meta.icon} ${meta.purpose}</div>
+
       <div class="dblock">
-        <div class="dbtitle">${godMode ? '// THREAT ASSESSMENT' : '// LIVE POSITION'}</div>
+        <div class="dbtitle">${godMode ? '// THREAT POSITION' : '// LIVE POSITION'}</div>
         <div class="drow"><span class="dl">LATITUDE</span><span class="dv">${lat.toFixed(4)}°</span></div>
         <div class="drow"><span class="dl">LONGITUDE</span><span class="dv">${lon.toFixed(4)}°</span></div>
         <div class="drow"><span class="dl">ALTITUDE</span><span class="dv amb">${alt.toFixed(1)} km</span></div>
-        ${godMode ? '<div class="drow"><span class="dl">THREAT STATUS</span><span class="dv red">⚠ FLAGGED</span></div>' : ''}
+        <div class="drow"><span class="dl">ORBIT CLASS</span><span class="dv ${godMode ? 'teal' : 'blu'}">${ot}</span></div>
+        ${godMode ? '<div class="drow"><span class="dl">THREAT STATUS</span><span class="dv teal">⚠ FLAGGED</span></div>' : ''}
       </div>
+
       <div class="dblock">
         <div class="dbtitle">// ORBITAL MECHANICS</div>
-        <div class="drow"><span class="dl">VELOCITY</span><span class="dv">${(vel * 3600 / 1000).toFixed(2)} km/h</span></div>
-        <div class="drow"><span class="dl">PERIOD</span><span class="dv">${period.toFixed(1)} min</span></div>
+        <div class="drow"><span class="dl">VELOCITY</span><span class="dv amb">${(vel * 3600).toFixed(0)} km/h</span></div>
+        <div class="drow"><span class="dl">SPEED (km/s)</span><span class="dv">${vel.toFixed(3)} km/s</span></div>
+        <div class="drow"><span class="dl">PERIOD</span><span class="dv">${period > 0 ? period.toFixed(2) + ' min' : '---'}</span></div>
         <div class="drow"><span class="dl">INCLINATION</span><span class="dv">${inc}°</span></div>
         <div class="drow"><span class="dl">ECCENTRICITY</span><span class="dv">${ecc}</span></div>
-        <div class="drow"><span class="dl">ORBIT CLASS</span><span class="dv ${godMode ? 'red' : 'blu'}">${ot}</span></div>
+        <div class="drow"><span class="dl">MEAN MOTION</span><span class="dv">${mm} rev/day</span></div>
+        <div class="drow"><span class="dl">RAAN</span><span class="dv">${raan}°</span></div>
+        <div class="drow"><span class="dl">ARG OF PERIGEE</span><span class="dv">${argp}°</span></div>
       </div>
+
       <div class="dblock">
-        <div class="dbtitle">// CLASSIFICATION</div>
-        <div class="drow"><span class="dl">NORAD ID</span><span class="dv">${sat.id || '---'}</span></div>
-        <div class="drow"><span class="dl">CATEGORY</span><span class="dv">${meta.purpose}</span></div>
-        <div class="drow"><span class="dl">STATUS</span><span class="dv ${godMode ? 'red' : 'blu'}">${godMode ? 'HOSTILE' : 'TRACKED'}</span></div>
+        <div class="dbtitle">// IDENTIFICATION</div>
+        <div class="drow"><span class="dl">NORAD ID</span><span class="dv">${sat.id}</span></div>
+        <div class="drow"><span class="dl">FULL NAME</span><span class="dv" style="font-size:8px;letter-spacing:.5px">${sat.name}</span></div>
+        <div class="drow"><span class="dl">CATEGORY</span><span class="dv">${meta.label}</span></div>
+        <div class="drow"><span class="dl">PURPOSE</span><span class="dv" style="font-size:8px">${meta.purpose}</span></div>
+        <div class="drow"><span class="dl">EPOCH YEAR</span><span class="dv">${launchYr}</span></div>
+        <div class="drow"><span class="dl">STATUS</span><span class="dv ${godMode ? 'teal' : 'blu'}">${godMode ? '⚠ HOSTILE' : '✓ TRACKED'}</span></div>
       </div>
-      <div id="mmc"><div class="dbtitle">// GROUND TRACK</div><canvas id="mmcanvas" width="264" height="100"></canvas></div>
-      <div id="tleblock"><div class="dbtitle">// TLE ELEMENTS</div><div class="tleline">${sat.tle1}</div><div class="tleline" style="margin-top:3px">${sat.tle2}</div></div>`;
+
+      <div id="mmc">
+        <div class="dbtitle">// GROUND TRACK</div>
+        <canvas id="mmcanvas" width="264" height="110"></canvas>
+      </div>
+      <div id="tleblock">
+        <div class="dbtitle">// TLE ELEMENTS</div>
+        <div class="tleline">${sat.tle1 || '---'}</div>
+        <div class="tleline" style="margin-top:4px">${sat.tle2 || '---'}</div>
+      </div>`;
 
     drawMiniMap(sat);
     document.getElementById('poslabel').textContent = `LAT: ${lat.toFixed(2)} LON: ${lon.toFixed(2)}`;
@@ -648,9 +709,9 @@ const UI = (() => {
     if (!cv) return;
     const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
     const bg    = godMode ? '#0d0000' : '#000510';
-    const grid  = godMode ? 'rgba(255,20,20,0.1)' : 'rgba(0,245,255,0.07)';
-    const dotC  = godMode ? '#ff2020' : '#ffb700';
-    const trailC= godMode ? 'rgba(255,32,0,0.4)' : 'rgba(255,204,0,0.5)';
+    const grid  = godMode ? 'rgba(0,255,200,0.1)' : 'rgba(0,245,255,0.07)';
+    const dotC  = godMode ? '#00ffcc' : '#ffb700';
+    const trailC= godMode ? 'rgba(0,255,180,0.4)' : 'rgba(255,204,0,0.5)';
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = grid; ctx.lineWidth = 0.5;
     for (let x = 0; x < W; x += W / 6) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
@@ -681,7 +742,7 @@ const UI = (() => {
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       ray.setFromCamera(mouse, Globe.camera);
       const all  = [...(layerSat ? Satellites.meshes : []), ...(layerAir ? Aircraft.meshes : [])];
-      const hits = ray.intersectObjects(all);
+      const hits = ray.intersectObjects(all).filter(h => !h.object.userData.isBlocker && !h.object.userData.isFlag && !h.object.userData.isGridLabel);
       if (hits.length) {
         const ud = hits[0].object.userData;
         ud.type === 'sat' ? selectSat(ud.idx) : selectAir(ud.idx);

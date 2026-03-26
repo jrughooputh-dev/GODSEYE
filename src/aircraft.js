@@ -84,7 +84,7 @@ const Aircraft = (() => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 20;
     const ctx = cv.getContext('2d');
     ctx.clearRect(0, 0, 20, 20);
-    ctx.fillStyle = '#ff2020';
+    ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
     ctx.moveTo(10, 2); ctx.lineTo(12, 10); ctx.lineTo(18, 12); ctx.lineTo(12, 13);
     ctx.lineTo(12, 17); ctx.lineTo(10, 16); ctx.lineTo(8, 17);
@@ -239,7 +239,7 @@ const Aircraft = (() => {
       const vel = ac.velocity ? Math.round(ac.velocity * 1.944) + 'kts' : '';
       const labelParts = [cs, fl, vel].filter(Boolean);
       const labelText  = labelParts.join(' · ');
-      const lColor = godMode ? '#ff4422' : ac.military ? '#ff9900' : '#00f5ff';
+      const lColor = godMode ? '#00ffcc' : ac.military ? '#ff9900' : '#00f5ff';
       const label  = Globe.makeLabelSprite(labelText, lColor, 0.6, 9);
       label.visible = false;
       label.userData = { idx, airLabel: true };
@@ -286,7 +286,7 @@ const Aircraft = (() => {
     activeBracket = null;
     if (idx === null || !airMeshes[idx]) return;
 
-    const color   = godMode ? 0xff2020 : aircraft[idx]?.military ? 0xff9900 : 0x00f5ff;
+    const color   = godMode ? 0x00ffcc : aircraft[idx]?.military ? 0xff9900 : 0x00f5ff;
     const bracket = Globe.makeBracket(0.045, color);
     bracket.position.copy(airMeshes[idx].position);
     bracket.userData = { idx, airBracket: true };
