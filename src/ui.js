@@ -7,7 +7,7 @@
 const UI = (() => {
   let selectedIdx  = null, selectedType = 'sat';
   let godMode      = false;
-  let layerSat     = true, layerAir = false;
+  let layerSat     = true, layerAir = true;
   let shaderMode   = 'normal';
   let radarOpen    = false;
 
@@ -432,8 +432,10 @@ const UI = (() => {
     Satellites.select(idx, godMode);
     // Clear aircraft brackets
     Globe.bracketGroup.children.filter(c => c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
-    // Show untrack button
-    showUntrackBtn('sat', sat ? (sat.name.length > 18 ? `SAT-${sat.id}` : sat.name) : '');
+    // Show untrack button + DOM blinking bracket
+    const _satName = sat ? (sat.name.length > 18 ? `SAT-${sat.id}` : sat.name) : '';
+    showUntrackBtn('sat', _satName);
+    if (typeof TrackBracket !== 'undefined') TrackBracket.show('sat', idx, _satName);
   }
 
   // ── Deselect / Untrack ────────────────────────────────────
@@ -450,6 +452,7 @@ const UI = (() => {
     document.getElementById('dbody').innerHTML = '<div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE · SCROLL TO ZOOM<br>&gt; <kbd style="border:1px solid var(--bo);padding:1px 5px;font-size:8px">ESC</kbd> TO UNTRACK</div>';
     document.getElementById('poslabel').textContent = 'LAT: -- LON: --';
     hideUntrackBtn();
+    if (typeof TrackBracket !== 'undefined') TrackBracket.hide();
     buildList();
   }
 
@@ -561,6 +564,7 @@ const UI = (() => {
     document.getElementById('dname').innerHTML = _airNameHTML(ac, cs);
     document.getElementById('dbody').innerHTML = _airBasicHTML(ac, cs);
     showUntrackBtn('air', cs);
+    if (typeof TrackBracket !== 'undefined') TrackBracket.show('air', idx, cs);
     const route = await Aircraft.fetchRoute(cs);
     _renderAirFull(ac, cs, route);
   }

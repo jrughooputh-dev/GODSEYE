@@ -150,6 +150,61 @@ const Satellites = (() => {
     return satellites.findIndex(s => s.cat === 'iss' && (s.name.includes('ISS') || s.name.includes('ZARYA')));
   }
 
+  // ── Emoji sprite cache ──────────────────────────────────
+  const emojiTexCache = {};
+
+  function makeEmojiTex(emoji, size = 64) {
+    if (emojiTexCache[emoji + size]) return emojiTexCache[emoji + size];
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    ctx.font = `${Math.floor(size * 0.72)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, size / 2, size / 2);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.LinearFilter;   // smooth emoji
+    tex.minFilter = THREE.LinearFilter;
+    emojiTexCache[emoji + size] = tex;
+    return tex;
+  }
+
+  function makeEmojiLabelTex(emoji, text, color, fontSize = 9) {
+    // Combined emoji + text label: "📡 ISS" or "🛰️ SAT-12345"
+    const cv  = document.createElement('canvas');
+    const ctx = cv.getContext('2d');
+    const emojiFont = `${fontSize + 4}px serif`;
+    const textFont  = `${fontSize}px "Share Tech Mono", monospace`;
+    ctx.font = emojiFont;
+    const ew = ctx.measureText(emoji).width;
+    ctx.font = textFont;
+    const tw = ctx.measureText(text).width;
+    const pad = 4, gap = 3;
+    cv.width  = Math.ceil(ew + gap + tw + pad * 2);
+    cv.height = fontSize + pad * 2 + 2;
+    // bg
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    // emoji
+    ctx.font = emojiFont;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, pad, cv.height / 2);
+    // text
+    ctx.font = textFont;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, pad + ew + gap, cv.height / 2 + 1);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    const spr = new THREE.Sprite(mat);
+    const charW = 0.011;
+    spr.scale.set((cv.width / cv.height) * charW * cv.height / 8, charW * cv.height / 8, 1);
+    return spr;
+  }
+
   // ── Build Meshes ────────────────────────────────────────
   function buildMeshes(godMode) {
     Globe.satGroup.clear();
@@ -161,26 +216,24 @@ const Satellites = (() => {
 
     satellites.forEach((sat, idx) => {
       const isISS  = sat.cat === 'iss';
-      const colStr = dotColorStr(sat.cat, godMode);
-
-      // ── Crisp dot sprite with NearestFilter ──
-      const tex = makeDotTex(colStr);
-      const mat = new THREE.SpriteMaterial({
+      // Emoji for the dot itself
+      const emoji  = isISS ? '📡' : '🛰️';
+      const tex    = makeEmojiTex(emoji, isISS ? 80 : 64);
+      const mat    = new THREE.SpriteMaterial({
         map: tex, transparent: true, depthTest: false,
-        opacity: sat.cat === 'debris' ? 0.35 : 0.9,
+        opacity: sat.cat === 'debris' ? 0.35 : 1.0,
       });
       const sprite = new THREE.Sprite(mat);
-      // Tiny world-space size — looks like a sharp pixel
-      const scale  = isISS ? 0.010 : sat.cat === 'debris' ? 0.003 : 0.005;
+      const scale  = isISS ? 0.028 : sat.cat === 'debris' ? 0.006 : 0.012;
       sprite.scale.setScalar(scale);
       sprite.userData = { idx, type: 'sat', obj: sat };
       Globe.satGroup.add(sprite);
       satMeshes.push(sprite);
 
-      // ── Label sprite ──
-      const labelText = isISS ? 'ISS' : `SAT-${sat.id}`;
+      // ── Combined emoji+text label ──
+      const labelText = isISS ? 'ISS' : sat.name.length <= 14 ? sat.name : `SAT-${sat.id}`;
       const lc = labelColor(sat.cat, godMode);
-      const label = Globe.makeLabelSprite(labelText, lc, 0.65, isISS ? 11 : 9);
+      const label = makeEmojiLabelTex(emoji, labelText, lc, isISS ? 10 : 8);
       label.visible = false;
       label.userData = { idx, satLabel: true };
       Globe.labelGroup.add(label);
@@ -258,10 +311,11 @@ const Satellites = (() => {
 
   // ── Recolor (no rebuild) ───────────────────────────────
   function recolor(godMode) {
+    // Emoji sprites don't change color — just opacity for debris in god mode
+    // In god mode all emojis stay the same (🛰️/📡) — no swap needed
     satellites.forEach((sat, idx) => {
       if (!satMeshes[idx]) return;
-      const colStr = dotColorStr(sat.cat, godMode);
-      satMeshes[idx].material.map = makeDotTex(colStr);
+      satMeshes[idx].material.opacity = sat.cat === 'debris' ? 0.25 : (godMode ? 0.7 : 1.0);
       satMeshes[idx].material.needsUpdate = true;
     });
   }
@@ -306,10 +360,12 @@ const Satellites = (() => {
   function select(idx, godMode) {
     selectedIdx = idx;
 
-    // Reset all dot sizes first
+    // Reset all emoji sprite sizes first
     satellites.forEach((_, i) => {
-      if (satMeshes[i]) satMeshes[i].scale.setScalar(
-        satellites[i].cat === 'iss' ? 0.010 : satellites[i].cat === 'debris' ? 0.003 : 0.005
+      if (!satMeshes[i]) return;
+      const s = satellites[i];
+      satMeshes[i].scale.setScalar(
+        s.cat === 'iss' ? 0.028 : s.cat === 'debris' ? 0.006 : 0.012
       );
     });
 
@@ -323,10 +379,10 @@ const Satellites = (() => {
       return;
     }
 
-    // Enlarge selected dot slightly (not 2x — just 1.6x to stay crisp)
+    // Enlarge selected emoji slightly
     if (satMeshes[idx]) {
-      const base = satellites[idx].cat === 'iss' ? 0.010 : 0.005;
-      satMeshes[idx].scale.setScalar(base * 1.8);
+      const base = satellites[idx].cat === 'iss' ? 0.028 : 0.012;
+      satMeshes[idx].scale.setScalar(base * 1.6);
     }
 
     // Isolate: hide all others

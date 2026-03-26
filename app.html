@@ -20,6 +20,7 @@
     <div class="hitem"><div class="dot blue" id="adot"></div><span id="acnt">-- ACFT</span></div>
     <button class="hdr-btn" id="tog-nvg" onclick="UI.toggleLayer('nvg')" title="Night Vision">🌙 NVG</button>
     <button class="hdr-btn" id="tog-flir" onclick="UI.toggleLayer('flir')" title="Thermal">🔴 FLIR</button>
+    <button class="hdr-btn" id="reset-btn" onclick="resetGlobe()" title="Reset globe orientation and zoom">⟳ RESET</button>
     <button class="hdr-btn" id="clock-btn" onclick="GodClock.toggle()">⏱ CLOCK</button>
     <button class="hdr-btn" id="radar-btn" onclick="UI.toggleRadar()">📡 RADAR</button>
     <button class="hdr-btn" id="god-btn" onclick="UI.toggleGodView()">☠ GOD VIEW</button>
@@ -97,6 +98,14 @@
     <div class="glabel gl-tr" id="zlabel">ZOOM: 1.0x</div>
     <div class="glabel gl-bl" id="poslabel">LAT: -- LON: --</div>
     <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK · OPENSKY · ADS-B</div>
+    <!-- DOM bracket overlay — follows tracked object via JS projection -->
+    <div id="track-bracket">
+      <div class="tb-corner tb-tl"></div>
+      <div class="tb-corner tb-tr"></div>
+      <div class="tb-corner tb-bl"></div>
+      <div class="tb-corner tb-br"></div>
+      <div class="tb-label" id="tb-label">TARGET</div>
+    </div>
   </div>
 
   <!-- Zoom Lever -->
@@ -245,7 +254,65 @@ const ZoomLever = (() => {
   return { init, update, step };
 })();
 
-// ── PROGRESS ──────────────────────────────────────────────
+// ── TRACKING BRACKET — DOM overlay projected from 3D pos ──
+const TrackBracket = (() => {
+  const el    = document.getElementById('track-bracket');
+  const label = document.getElementById('tb-label');
+  let   tracked = null; // { type:'sat'|'air', idx, name }
+
+  function show(type, idx, name) {
+    tracked = { type, idx, name };
+    label.textContent = name;
+    el.classList.add('active');
+  }
+
+  function hide() {
+    tracked = null;
+    el.classList.remove('active');
+    el.style.left = '-999px';
+  }
+
+  function update() {
+    if (!tracked) return;
+    let worldPos = null;
+    if (tracked.type === 'sat' && Satellites.meshes[tracked.idx]) {
+      worldPos = Satellites.meshes[tracked.idx].position.clone();
+    } else if (tracked.type === 'air' && Aircraft.meshes[tracked.idx]) {
+      worldPos = Aircraft.meshes[tracked.idx].position.clone();
+    }
+    if (!worldPos) { hide(); return; }
+
+    // Project 3D world position → 2D screen
+    const screen = Utils.worldToScreen(worldPos, Globe.rotX, Globe.rotY, Globe.camera,
+      Globe.wrap.clientWidth, Globe.wrap.clientHeight);
+
+    if (!screen) { el.style.opacity = '0'; return; }
+    el.style.opacity  = '1';
+    el.style.left     = screen.x + 'px';
+    el.style.top      = screen.y + 'px';
+    // Size bracket based on zoom — tighter when zoomed in
+    const sz = Math.max(22, Math.min(48, 32 / Globe.zoom * 2));
+    el.style.width  = sz + 'px';
+    el.style.height = sz + 'px';
+  }
+
+  return { show, hide, update };
+})();
+
+// ── RESET GLOBE ───────────────────────────────────────────
+function resetGlobe() {
+  Globe.rotX = 0.3;
+  Globe.rotY = 0;
+  Globe.zoom = 3.6;
+  Globe.autoRot = true;
+  const lbl = document.getElementById('zlabel');
+  if (lbl) lbl.textContent = 'ZOOM: 3.6x';
+  ZoomLever.update();
+  UI.deselect();
+  TrackBracket.hide();
+}
+
+// ── PROGRESS ─────────────────────────────────────────────
 function setProgress(pct, msg) {
   document.getElementById('lb').style.width = pct + '%';
   document.getElementById('lmsg').textContent = msg;
@@ -282,6 +349,22 @@ async function init() {
   UI.buildList();
   UI.buildDataLayers();
 
+  // Auto-load aircraft on startup
+  setProgress(92, 'LOADING LIVE FLIGHTS...');
+  Aircraft.fetch().then(ok => {
+    if (ok) {
+      Aircraft.buildMeshes(false);
+      Aircraft.place();
+      Globe.airGroup.visible = true;
+      document.getElementById('acnt').textContent = Aircraft.list.length + ' ACFT';
+      document.getElementById('adot').style.boxShadow = '0 0 8px #00f5ff';
+      UI.buildList();
+      UI.buildDataLayers();
+    } else {
+      document.getElementById('acnt').textContent = 'ACFT OFFLINE';
+    }
+  });
+
   document.getElementById('scnt').textContent = Satellites.list.length + ' SAT';
   document.getElementById('sstatus').textContent = 'ONLINE';
   document.getElementById('sdot').style.boxShadow = '0 0 10px #00f5ff';
@@ -310,6 +393,7 @@ function animate() {
   }
   Globe.render();
   ZoomLever.update();
+  TrackBracket.update();
 
   // Track zoom crossing the label threshold — refresh visibility when it changes
   const curZoom = Globe.zoom;

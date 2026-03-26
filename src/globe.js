@@ -78,10 +78,16 @@ const Globe = (() => {
   // ── Earth ─────────────────────────────────────────────────
   function createEarth() {
     const loader   = new THREE.TextureLoader();
-    const dayTex   = loader.load(CONFIG.textures.day);
-    const nightTex = loader.load(CONFIG.textures.night);
-    const normalTex= loader.load(CONFIG.textures.topo);
-    const cloudTex = loader.load(CONFIG.textures.clouds);
+    // Load standard res immediately for fast startup
+    const dayTex    = loader.load(CONFIG.textures.day);
+    const nightTex  = loader.load(CONFIG.textures.night);
+    const normalTex = loader.load(CONFIG.textures.topo);
+    const cloudTex  = loader.load(CONFIG.textures.clouds);
+
+    // Anisotropic filtering for sharper textures at oblique angles
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+    dayTex.anisotropy   = maxAniso;
+    nightTex.anisotropy = maxAniso;
 
     earthMat = new THREE.ShaderMaterial({
       uniforms: {
@@ -115,16 +121,42 @@ const Globe = (() => {
         }
       `
     });
-    earth = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 36), earthMat);
+    earth = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 64), earthMat);
     scene.add(earth);
 
-    cloudMat = new THREE.MeshPhongMaterial({ map: cloudTex, transparent: true, opacity: 0.28, depthWrite: false });
-    clouds   = new THREE.Mesh(new THREE.SphereGeometry(1.008, 64, 32), cloudMat);
+    // Progressive high-res upgrade — load NASA 8K in background
+    if (CONFIG.textures.dayHR) {
+      loader.load(CONFIG.textures.dayHR,
+        tex => {
+          tex.anisotropy = maxAniso;
+          earthMat.uniforms.dayTexture.value = tex;
+          earthMat.needsUpdate = true;
+        },
+        undefined,
+        () => {} // silently fail if blocked (NASA CDN has CORS restrictions)
+      );
+    }
+    if (CONFIG.textures.nightHR) {
+      loader.load(CONFIG.textures.nightHR,
+        tex => {
+          tex.anisotropy = maxAniso;
+          earthMat.uniforms.nightTexture.value = tex;
+          earthMat.needsUpdate = true;
+        },
+        undefined,
+        () => {}
+      );
+    }
+
+    cloudMat = new THREE.MeshPhongMaterial({
+      map: cloudTex, transparent: true, opacity: 0.22, depthWrite: false
+    });
+    clouds = new THREE.Mesh(new THREE.SphereGeometry(1.008, 128, 64), cloudMat);
     scene.add(clouds);
 
     gridMesh = new THREE.Mesh(
       new THREE.SphereGeometry(1.002, 48, 24),
-      new THREE.MeshBasicMaterial({ color: 0x00ff41, wireframe: true, transparent: true, opacity: 0.025 })
+      new THREE.MeshBasicMaterial({ color: 0x00ff41, wireframe: true, transparent: true, opacity: 0.02 })
     );
     scene.add(gridMesh);
   }

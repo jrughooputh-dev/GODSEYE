@@ -218,6 +218,57 @@ const Aircraft = (() => {
     } catch (e) { return null; }
   }
 
+  // ── Emoji texture cache ───────────────────────────────────
+  const acEmojiCache = {};
+  function makeAcEmojiTex(emoji) {
+    if (acEmojiCache[emoji]) return acEmojiCache[emoji];
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.font = '48px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 32, 32);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    acEmojiCache[emoji] = tex;
+    return tex;
+  }
+
+  function makeAcLabelTex(emoji, cs, lColor) {
+    const cv  = document.createElement('canvas');
+    const ctx = cv.getContext('2d');
+    const fontSize = 9;
+    const emojiFont = `${fontSize + 4}px serif`;
+    const textFont  = `${fontSize}px "Share Tech Mono", monospace`;
+    ctx.font = emojiFont;
+    const ew = ctx.measureText(emoji).width;
+    ctx.font = textFont;
+    const tw = ctx.measureText(cs).width;
+    const pad = 4, gap = 3;
+    cv.width  = Math.ceil(ew + gap + tw + pad * 2);
+    cv.height = fontSize + pad * 2 + 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.font = emojiFont;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, pad, cv.height / 2);
+    ctx.font = textFont;
+    ctx.fillStyle = lColor;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cs, pad + ew + gap, cv.height / 2 + 1);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    const spr = new THREE.Sprite(mat);
+    const h = 0.045;
+    spr.scale.set((cv.width / cv.height) * h, h, 1);
+    return spr;
+  }
+
   // ── Build Meshes ─────────────────────────────────────────
   function buildMeshes(godMode) {
     Globe.airGroup.clear();
@@ -232,23 +283,22 @@ const Aircraft = (() => {
     airLabels = [];
 
     aircraft.forEach((ac, idx) => {
-      const tex = godMode ? getGodTex() : ac.military ? getMilTex() : getPlaneTex();
-      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.92 });
+      // ✈️ civil, 🛩️ military, both teal in god mode
+      const emoji = godMode ? '✈️' : ac.military ? '🛩️' : '✈️';
+      const tex   = makeAcEmojiTex(emoji);
+      const mat   = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.95 });
       const sprite = new THREE.Sprite(mat);
-      sprite.scale.setScalar(0.016);
+      sprite.scale.setScalar(0.018);
       sprite.userData = { idx, type: 'air', obj: ac };
       Globe.airGroup.add(sprite);
       airMeshes.push(sprite);
 
-      // Floating label: "CALLSIGN · FL380 · 335kts" style
-      const cs = (ac.callsign || ac.icao24 || 'UNK').substring(0, 8);
-      const alt = ac.baro_altitude || ac.geo_altitude;
-      const fl  = alt ? 'FL' + Math.round(alt * 3.28084 / 100) : '';
-      const vel = ac.velocity ? Math.round(ac.velocity * 1.944) + 'kts' : '';
-      const labelParts = [cs, fl, vel].filter(Boolean);
-      const labelText  = labelParts.join(' · ');
+      // Label with emoji prefix
+      const cs     = (ac.callsign || ac.icao24 || 'UNK').substring(0, 8).trim();
+      const alt    = ac.baro_altitude || ac.geo_altitude;
+      const fl     = alt ? ' · FL' + Math.round(alt * 3.28084 / 100) : '';
       const lColor = godMode ? '#00ffcc' : ac.military ? '#ff9900' : '#00f5ff';
-      const label  = Globe.makeLabelSprite(labelText, lColor, 0.6, 9);
+      const label  = makeAcLabelTex(emoji, cs + fl, lColor);
       label.visible = false;
       label.userData = { idx, airLabel: true };
       Globe.labelGroup.add(label);
@@ -277,10 +327,10 @@ const Aircraft = (() => {
 
   // ── Recolor ───────────────────────────────────────────────
   function recolor(godMode) {
+    // Emoji sprites keep their appearance — just adjust opacity in god mode
     aircraft.forEach((ac, idx) => {
       if (!airMeshes[idx]) return;
-      const tex = godMode ? getGodTex() : ac.military ? getMilTex() : getPlaneTex();
-      airMeshes[idx].material.map = tex;
+      airMeshes[idx].material.opacity = godMode ? 0.7 : 0.95;
       airMeshes[idx].material.needsUpdate = true;
     });
   }

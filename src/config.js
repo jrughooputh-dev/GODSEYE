@@ -24,12 +24,16 @@ const CONFIG = {
     return (_LOCAL.adsbexchange && _LOCAL.adsbexchange.apiKey) || '';
   },
 
-  // NASA Earth textures
+  // NASA Earth textures — high resolution
   textures: {
+    // NASA Blue Marble 8K — best available resolution
     day:    'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
     night:  'https://unpkg.com/three-globe/example/img/earth-night.jpg',
     topo:   'https://unpkg.com/three-globe/example/img/earth-topology.png',
     clouds: 'https://unpkg.com/three-globe/example/img/earth-clouds.png',
+    // High-res fallbacks — loaded progressively if CDN supports
+    dayHR:  'https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74518/world.200410.3x5400x2700.jpg',
+    nightHR:'https://eoimages.gsfc.nasa.gov/images/imagerecords/79000/79765/dnb_land_ocean_ice.2012.3600x1800.jpg',
   },
 
   // ── TLE GROUPS ───────────────────────────────────────────

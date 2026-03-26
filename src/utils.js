@@ -25,7 +25,8 @@ const Utils = {
 
   worldToScreen(vec3, rotX, rotY, camera, width, height) {
     const v = vec3.clone();
-    v.applyEuler(new THREE.Euler(rotX, rotY, 0));
+    // Globe groups rotate Y then X — use YXZ order to match
+    v.applyEuler(new THREE.Euler(rotX, rotY, 0, 'YXZ'));
     const proj = v.project(camera);
     if (proj.z > 1) return null;
     return {

@@ -63,6 +63,8 @@ body.godview #radar-btn.active{border-color:#00ffcc;color:#00ffcc;box-shadow:0 0
 #tog-nvg,#tog-flir{font-size:8px;color:#44cc88;border-color:rgba(68,204,136,.3)}
 #tog-nvg:hover,#tog-flir:hover{border-color:#44cc88;color:#44cc88;box-shadow:0 0 12px rgba(68,204,136,.25)}
 #tog-nvg.on,#tog-flir.on{border-color:#44cc88;background:rgba(68,204,136,.1);color:#44cc88;box-shadow:0 0 16px rgba(68,204,136,.4)}
+#reset-btn{color:var(--cd);border-color:var(--bo)}
+#reset-btn:hover{color:var(--c);border-color:var(--c);box-shadow:0 0 12px rgba(0,245,255,.2)}
 
 /* ── LEFT PANEL ── */
 #lp{grid-column:1;grid-row:2;border-right:1px solid var(--bb);background:var(--panel);backdrop-filter:blur(16px);display:flex;flex-direction:column;overflow:hidden;transition:all .7s;position:relative}
@@ -403,4 +405,53 @@ body.godview #tip{background:rgba(0,6,14,.97);border-color:var(--c);box-shadow:0
   #lp,#rp{display:none}
   #gw{grid-column:1}
   #zoom-lever{display:none}
+}
+
+/* ── TRACKING BRACKET OVERLAY ── */
+#track-bracket{
+  position:absolute;
+  pointer-events:none;
+  z-index:50;
+  display:none;
+  transform:translate(-50%,-50%);
+}
+#track-bracket.active{ display:block; }
+#track-bracket .tb-corner{
+  position:absolute;
+  width:14px; height:14px;
+  border-color:var(--a);
+  border-style:solid;
+  border-width:0;
+}
+#track-bracket .tb-tl{ top:0; left:0; border-top-width:2px; border-left-width:2px; }
+#track-bracket .tb-tr{ top:0; right:0; border-top-width:2px; border-right-width:2px; }
+#track-bracket .tb-bl{ bottom:0; left:0; border-bottom-width:2px; border-left-width:2px; }
+#track-bracket .tb-br{ bottom:0; right:0; border-bottom-width:2px; border-right-width:2px; }
+#track-bracket.active .tb-corner{
+  animation:bracketBlink 0.9s ease-in-out infinite;
+  box-shadow:0 0 6px var(--a);
+}
+#track-bracket .tb-label{
+  position:absolute;
+  top:-22px; left:50%; transform:translateX(-50%);
+  font-family:var(--fd); font-size:8px; letter-spacing:2px;
+  color:var(--a); white-space:nowrap;
+  text-shadow:0 0 8px rgba(255,183,0,.8);
+  background:rgba(0,0,0,.7); padding:2px 6px;
+  border:1px solid rgba(255,183,0,.35);
+  animation:bracketBlink 0.9s ease-in-out infinite;
+}
+@keyframes bracketBlink{
+  0%,100%{ opacity:1; border-color:var(--a); }
+  50%{ opacity:0.25; border-color:rgba(255,183,0,.2); }
+}
+body.godview #track-bracket .tb-corner,
+body.godview #track-bracket .tb-label{
+  border-color:#00ffcc; color:#00ffcc;
+  text-shadow:0 0 8px rgba(0,255,204,.8);
+  box-shadow:0 0 6px #00ffcc;
+}
+@keyframes bracketBlinkTeal{
+  0%,100%{ opacity:1; border-color:#00ffcc; }
+  50%{ opacity:0.25; border-color:rgba(0,255,204,.2); }
 }
