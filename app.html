@@ -8,6 +8,7 @@
 </head>
 <body>
 <div id="god-flash"></div>
+<div id="grain"></div>
 
 <div id="app">
 
@@ -28,10 +29,10 @@
 <aside id="lp">
   <div class="ph"><span id="panel-label">// TRACKED OBJECTS</span><span class="pc" id="lcount">0</span></div>
 
-  <!-- GOD VIEW threat dashboard — only visible in god mode -->
+  <!-- GOD VIEW threat dashboard -->
   <div id="god-dashboard"></div>
 
-  <!-- Normal mode: threat bar (god mode only) -->
+  <!-- Threat bar (god mode only) -->
   <div id="threat-bar">
     <div class="threat-item"><span>THREATS</span><span class="threat-val" id="t-threats">0</span></div>
     <div class="threat-item"><span>LEO</span><span class="threat-val" id="t-leo">0</span></div>
@@ -71,6 +72,8 @@
   <div id="god-overlay"></div>
   <canvas id="targets-canvas"></canvas>
   <div id="sweep"></div>
+
+  <!-- HUD brackets + labels -->
   <div id="hud">
     <div class="cbracket tl"></div><div class="cbracket tr"></div>
     <div class="cbracket bl"></div><div class="cbracket br"></div>
@@ -80,6 +83,18 @@
     <div class="glabel gl-bl" id="poslabel">LAT: -- LON: --</div>
     <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK · OPENSKY</div>
   </div>
+
+  <!-- Zoom Lever -->
+  <div id="zoom-lever">
+    <button id="zoom-in-btn" onclick="ZoomLever.step(1)" title="Zoom in">+</button>
+    <div id="zoom-val">1.0×</div>
+    <div id="zoom-track">
+      <div id="zoom-handle"></div>
+    </div>
+    <div id="zoom-lever-label">ZOOM</div>
+    <button id="zoom-out-btn" onclick="ZoomLever.step(-1)" title="Zoom out">−</button>
+  </div>
+
   <div id="loading">
     <div id="ltitle">GODS EYE</div>
     <div id="lbw"><div id="lb"></div></div>
@@ -90,12 +105,12 @@
 
 <aside id="rp">
   <div class="rph" id="rph-label">// OBJECT TELEMETRY</div>
-  <div id="dname"><span style="color:var(--gd);font-size:9px;letter-spacing:2px;">AWAITING TARGET LOCK</span></div>
+  <div id="dname"><span style="color:var(--cd);font-size:9px;letter-spacing:2px;opacity:.6">AWAITING TARGET LOCK</span></div>
   <div id="dbody">
     <div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE<br>&gt; SCROLL TO ZOOM</div>
   </div>
 
-  <!-- RADAR PANEL — slides over right panel, expands to overlay -->
+  <!-- RADAR PANEL -->
   <div id="radar-panel">
     <div class="radar-hdr">
       <span>📡 PROXIMITY RADAR</span>
@@ -125,7 +140,7 @@
 </aside>
 
 <footer id="ftr">
-  <span id="ftr-label">GODS EYE v5.0 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
+  <span id="ftr-label">GODS EYE v5.1 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
   <div class="fitems">
     <span>CELESTRAK · OPENSKY · AVIATIONSTACK</span>
     <span id="lupdate">SYNC: --</span>
@@ -140,11 +155,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
 
-<!-- LOCAL CONFIG — loaded first, gitignored, holds API keys + credential hashes -->
-<!-- If this file is missing (e.g. cloned fresh), auth will be bypassed automatically -->
+<!-- LOCAL CONFIG — gitignored, holds API keys + credential hashes -->
 <script src="src/config.local.js" onerror="window.GODS_EYE_LOCAL={}"></script>
 
-<!-- App modules (order matters) -->
+<!-- App modules -->
 <script src="src/config.js"></script>
 <script src="src/auth.js"></script>
 <script src="src/utils.js"></script>
@@ -164,6 +178,103 @@ if (!Auth.isAuthenticated()) {
   window.location.href = 'index.html';
 }
 
+// ── ZOOM LEVER ────────────────────────────────────────────
+const ZoomLever = (() => {
+  const MIN = 1.5, MAX = 10;
+  let dragging = false;
+  let trackRect = null;
+
+  function pctFromZoom(z) {
+    return 1 - (z - MIN) / (MAX - MIN); // top = zoomed in (small z)
+  }
+
+  function zoomFromPct(p) {
+    return MIN + (1 - p) * (MAX - MIN);
+  }
+
+  function update() {
+    const z = Globe.zoom;
+    const pct = pctFromZoom(z);
+    const track = document.getElementById('zoom-track');
+    const handle = document.getElementById('zoom-handle');
+    const val = document.getElementById('zoom-val');
+    const hud = document.getElementById('zlabel');
+    if (!track || !handle) return;
+    const trackH = track.clientHeight;
+    handle.style.top = (pct * trackH) + 'px';
+    val.textContent = z.toFixed(1) + '×';
+    if (hud) hud.textContent = 'ZOOM: ' + z.toFixed(1) + 'x';
+  }
+
+  function setZoom(z) {
+    z = Math.max(MIN, Math.min(MAX, z));
+    // Globe.zoom is read-only via getter, set via wheel event simulation
+    // Instead, directly manipulate Globe internals via the public setter pattern
+    // We patch it via the same path as wheel: update camera.position.z
+    Globe.camera.position.z = z;
+    // Also update zoom variable via the exposed method
+    _setGlobeZoom(z);
+    update();
+  }
+
+  // Globe doesn't expose a zoom setter directly — we use this workaround
+  function _setGlobeZoom(z) {
+    // Dispatch a synthetic wheel event on the canvas to trigger Globe's zoom handler
+    // Instead, we set it directly since Globe.render() reads camera.position.z
+    Globe.camera.position.z = z;
+    document.getElementById('zlabel').textContent = 'ZOOM: ' + z.toFixed(1) + 'x';
+  }
+
+  function step(dir) {
+    const current = Globe.camera.position.z;
+    const next = Math.max(MIN, Math.min(MAX, current + dir * 0.5));
+    Globe.camera.position.z = next;
+    update();
+  }
+
+  function init() {
+    const track = document.getElementById('zoom-track');
+    const handle = document.getElementById('zoom-handle');
+    if (!track || !handle) return;
+
+    handle.addEventListener('mousedown', e => {
+      dragging = true;
+      trackRect = track.getBoundingClientRect();
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      if (!trackRect) trackRect = track.getBoundingClientRect();
+      const relY = e.clientY - trackRect.top;
+      const pct = Math.max(0, Math.min(1, relY / trackRect.height));
+      Globe.camera.position.z = Math.max(MIN, Math.min(MAX, zoomFromPct(pct)));
+      update();
+    });
+
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    // Click on track
+    track.addEventListener('click', e => {
+      if (e.target === handle) return;
+      trackRect = track.getBoundingClientRect();
+      const relY = e.clientY - trackRect.top;
+      const pct = Math.max(0, Math.min(1, relY / trackRect.height));
+      Globe.camera.position.z = Math.max(MIN, Math.min(MAX, zoomFromPct(pct)));
+      update();
+    });
+
+    // Sync with scroll wheel
+    document.getElementById('gc').addEventListener('wheel', () => {
+      setTimeout(update, 16);
+    }, { passive: true });
+
+    update();
+  }
+
+  return { init, update, step, setZoom };
+})();
+
 // ── PROGRESS ───────────────────────────────────────────────
 function setProgress(pct, msg) {
   document.getElementById('lb').style.width = pct + '%';
@@ -177,6 +288,7 @@ async function init() {
   UI.initTargeting();
   UI.initRaycast();
   UI.buildCatFilterPanel();
+  ZoomLever.init();
 
   setProgress(10, 'CONNECTING TO CELESTRAK...');
   const result = await Satellites.fetchAll((label, count, i, total) => {
@@ -202,10 +314,9 @@ async function init() {
 
   document.getElementById('scnt').textContent = Satellites.list.length + ' SAT';
   document.getElementById('sstatus').textContent = 'ONLINE';
-  document.getElementById('sdot').style.boxShadow = '0 0 8px #00ff41';
+  document.getElementById('sdot').style.boxShadow = '0 0 10px #00f5ff';
   document.getElementById('lupdate').textContent = 'SYNC: ' + new Date().toUTCString().slice(17, 25) + ' UTC';
 
-  // Pre-fetch ISS crew data in background
   Satellites.fetchISSData();
 
   setProgress(100, 'ALL SYSTEMS NOMINAL');
@@ -231,6 +342,7 @@ function animate() {
   }
 
   Globe.render();
+  ZoomLever.update();
 
   if (Globe.frame % CONFIG.satUpdateFrames === 0) {
     Satellites.propagate(UI.godMode);
