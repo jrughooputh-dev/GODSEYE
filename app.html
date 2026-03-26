@@ -18,6 +18,8 @@
     <div class="hitem"><div class="dot" id="sdot"></div><span id="sstatus">INIT</span></div>
     <div class="hitem"><div class="dot amber"></div><span id="scnt">-- SAT</span></div>
     <div class="hitem"><div class="dot blue" id="adot"></div><span id="acnt">-- ACFT</span></div>
+    <button class="hdr-btn" id="tog-nvg" onclick="UI.toggleLayer('nvg')" title="Night Vision">🌙 NVG</button>
+    <button class="hdr-btn" id="tog-flir" onclick="UI.toggleLayer('flir')" title="Thermal">🔴 FLIR</button>
     <button class="hdr-btn" id="clock-btn" onclick="GodClock.toggle()">⏱ CLOCK</button>
     <button class="hdr-btn" id="radar-btn" onclick="UI.toggleRadar()">📡 RADAR</button>
     <button class="hdr-btn" id="god-btn" onclick="UI.toggleGodView()">☠ GOD VIEW</button>
@@ -26,13 +28,14 @@
   </div>
 </header>
 
+<!-- ── LEFT PANEL ── -->
 <aside id="lp">
   <div class="ph"><span id="panel-label">// TRACKED OBJECTS</span><span class="pc" id="lcount">0</span></div>
 
-  <!-- GOD VIEW threat dashboard -->
+  <!-- GOD VIEW dashboard -->
   <div id="god-dashboard"></div>
 
-  <!-- Threat bar (god mode only) -->
+  <!-- Threat bar -->
   <div id="threat-bar">
     <div class="threat-item"><span>THREATS</span><span class="threat-val" id="t-threats">0</span></div>
     <div class="threat-item"><span>LEO</span><span class="threat-val" id="t-leo">0</span></div>
@@ -40,23 +43,35 @@
     <div class="threat-item"><span>GEO</span><span class="threat-val" id="t-geo">0</span></div>
   </div>
 
-  <!-- Layer toggles -->
-  <div id="layers">
-    <div class="ltog sat on" id="tog-sat" onclick="UI.toggleLayer('sat')">SAT</div>
-    <div class="ltog air" id="tog-air" onclick="UI.toggleLayer('air')">ACFT</div>
-    <div class="ltog nvg" id="tog-nvg" onclick="UI.toggleLayer('nvg')">NVG</div>
-    <div class="ltog flir" id="tog-flir" onclick="UI.toggleLayer('flir')">FLIR</div>
+  <!-- DATA LAYERS panel -->
+  <div id="data-layers-wrap">
+    <div class="dl-header">DATA LAYERS</div>
+    <div id="data-layers-body"></div>
+  </div>
+
+  <!-- Unified search + type filters -->
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="> SEARCH NAME, NORAD, CALLSIGN, ICAO..." autocomplete="off" spellcheck="false"
+      oninput="UI.setSearchQuery(this.value)">
+    <div class="filter-pills">
+      <div class="filter-pill active" data-filter="all" onclick="UI.setFilterType('all')">ALL</div>
+      <div class="filter-pill" data-filter="sat" onclick="UI.setFilterType('sat')">SAT</div>
+      <div class="filter-pill" data-filter="air" onclick="UI.setFilterType('air')">FLIGHTS</div>
+      <div class="filter-pill mil" data-filter="mil" onclick="UI.setFilterType('mil')">🪖 MIL</div>
+    </div>
+    <input id="country-filter" type="text" placeholder="> FILTER BY COUNTRY..." autocomplete="off" spellcheck="false"
+      oninput="UI.setFilterCountry(this.value)">
   </div>
 
   <!-- Category filters -->
   <div id="cat-filter-wrap">
-    <div class="cat-filter-label">// FILTER BY TYPE</div>
+    <div class="cat-filter-label">// FILTER BY SAT TYPE</div>
     <div id="cat-filters"></div>
   </div>
 
-  <input id="search" type="text" placeholder="> SEARCH DESIGNATION..." autocomplete="off" spellcheck="false">
   <div id="list"></div>
 
+  <!-- GOD CLOCK overlay -->
   <div id="god-clock-overlay">
     <div id="god-clock-hdr">
       <span>⏱ GOD CLOCK // WORLD TIME</span>
@@ -66,6 +81,7 @@
   </div>
 </aside>
 
+<!-- ── GLOBE ── -->
 <main id="gw">
   <canvas id="gc"></canvas>
   <div id="shader-overlay"></div>
@@ -73,7 +89,6 @@
   <canvas id="targets-canvas"></canvas>
   <div id="sweep"></div>
 
-  <!-- HUD brackets + labels -->
   <div id="hud">
     <div class="cbracket tl"></div><div class="cbracket tr"></div>
     <div class="cbracket bl"></div><div class="cbracket br"></div>
@@ -81,16 +96,14 @@
     <div class="glabel gl-tl" id="gl-tl">GLOBAL SURVEILLANCE NETWORK</div>
     <div class="glabel gl-tr" id="zlabel">ZOOM: 1.0x</div>
     <div class="glabel gl-bl" id="poslabel">LAT: -- LON: --</div>
-    <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK · OPENSKY</div>
+    <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK · OPENSKY · ADS-B</div>
   </div>
 
   <!-- Zoom Lever -->
   <div id="zoom-lever">
     <button id="zoom-in-btn" onclick="ZoomLever.step(1)" title="Zoom in">+</button>
     <div id="zoom-val">1.0×</div>
-    <div id="zoom-track">
-      <div id="zoom-handle"></div>
-    </div>
+    <div id="zoom-track"><div id="zoom-handle"></div></div>
     <div id="zoom-lever-label">ZOOM</div>
     <button id="zoom-out-btn" onclick="ZoomLever.step(-1)" title="Zoom out">−</button>
   </div>
@@ -103,14 +116,15 @@
   </div>
 </main>
 
+<!-- ── RIGHT PANEL ── -->
 <aside id="rp">
   <div class="rph" id="rph-label">// OBJECT TELEMETRY</div>
-  <div id="dname"><span style="color:var(--cd);font-size:9px;letter-spacing:2px;opacity:.6">AWAITING TARGET LOCK</span></div>
+  <div id="dname"><span style="color:var(--cd);font-size:9px;letter-spacing:2px;opacity:.5">AWAITING TARGET LOCK</span></div>
   <div id="dbody">
-    <div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE<br>&gt; SCROLL TO ZOOM</div>
+    <div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE<br>&gt; SCROLL / LEVER TO ZOOM</div>
   </div>
 
-  <!-- RADAR PANEL -->
+  <!-- RADAR PANEL (inline) -->
   <div id="radar-panel">
     <div class="radar-hdr">
       <span>📡 PROXIMITY RADAR</span>
@@ -130,8 +144,7 @@
       <canvas id="radar-canvas" width="240" height="240"></canvas>
     </div>
     <div class="radar-coords">
-      <span>YOUR POS:</span>
-      <span id="radar-coords">---</span>
+      <span>YOUR POS:</span><span id="radar-coords">---</span>
     </div>
     <div id="radar-list">
       <div class="radar-empty">ACTIVATE RADAR TO SCAN</div>
@@ -140,9 +153,9 @@
 </aside>
 
 <footer id="ftr">
-  <span id="ftr-label">GODS EYE v5.1 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
+  <span id="ftr-label">GODS EYE v5.2 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
   <div class="fitems">
-    <span>CELESTRAK · OPENSKY · AVIATIONSTACK</span>
+    <span>CELESTRAK · OPENSKY · AVIATIONSTACK · ADS-B EXCHANGE</span>
     <span id="lupdate">SYNC: --</span>
     <span id="frtcount">RENDER: 0fps</span>
   </div>
@@ -155,7 +168,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
 
-<!-- LOCAL CONFIG — gitignored, holds API keys + credential hashes -->
+<!-- LOCAL CONFIG — gitignored -->
 <script src="src/config.local.js" onerror="window.GODS_EYE_LOCAL={}"></script>
 
 <!-- App modules -->
@@ -169,119 +182,75 @@
 <script src="src/radar.js"></script>
 <script src="src/ui.js"></script>
 
-<!-- App bootstrap -->
 <script>
 'use strict';
 
-// ── AUTH GATE ──────────────────────────────────────────────
-if (!Auth.isAuthenticated()) {
-  window.location.href = 'index.html';
-}
+if (!Auth.isAuthenticated()) { window.location.href = 'index.html'; }
 
 // ── ZOOM LEVER ────────────────────────────────────────────
 const ZoomLever = (() => {
   const MIN = 1.5, MAX = 10;
-  let dragging = false;
-  let trackRect = null;
+  let dragging = false, trackRect = null;
 
-  function pctFromZoom(z) {
-    return 1 - (z - MIN) / (MAX - MIN); // top = zoomed in (small z)
-  }
-
-  function zoomFromPct(p) {
-    return MIN + (1 - p) * (MAX - MIN);
-  }
+  function pctFromZoom(z) { return 1 - (z - MIN) / (MAX - MIN); }
+  function zoomFromPct(p) { return MIN + (1 - p) * (MAX - MIN); }
 
   function update() {
-    const z = Globe.zoom;
+    const z   = Globe.zoom;
     const pct = pctFromZoom(z);
-    const track = document.getElementById('zoom-track');
+    const track  = document.getElementById('zoom-track');
     const handle = document.getElementById('zoom-handle');
-    const val = document.getElementById('zoom-val');
-    const hud = document.getElementById('zlabel');
+    const val    = document.getElementById('zoom-val');
+    const hud    = document.getElementById('zlabel');
     if (!track || !handle) return;
-    const trackH = track.clientHeight;
-    handle.style.top = (pct * trackH) + 'px';
-    val.textContent = z.toFixed(1) + '×';
+    handle.style.top = (pct * track.clientHeight) + 'px';
+    if (val) val.textContent = z.toFixed(1) + '×';
     if (hud) hud.textContent = 'ZOOM: ' + z.toFixed(1) + 'x';
   }
 
-  function setZoom(z) {
-    z = Math.max(MIN, Math.min(MAX, z));
-    // Globe.zoom is read-only via getter, set via wheel event simulation
-    // Instead, directly manipulate Globe internals via the public setter pattern
-    // We patch it via the same path as wheel: update camera.position.z
-    Globe.camera.position.z = z;
-    // Also update zoom variable via the exposed method
-    _setGlobeZoom(z);
-    update();
-  }
-
-  // Globe doesn't expose a zoom setter directly — we use this workaround
-  function _setGlobeZoom(z) {
-    // Dispatch a synthetic wheel event on the canvas to trigger Globe's zoom handler
-    // Instead, we set it directly since Globe.render() reads camera.position.z
-    Globe.camera.position.z = z;
-    document.getElementById('zlabel').textContent = 'ZOOM: ' + z.toFixed(1) + 'x';
-  }
-
   function step(dir) {
-    const current = Globe.camera.position.z;
-    const next = Math.max(MIN, Math.min(MAX, current + dir * 0.5));
-    Globe.camera.position.z = next;
+    Globe.zoom = Globe.zoom + dir * 0.5;
     update();
   }
 
   function init() {
-    const track = document.getElementById('zoom-track');
+    const track  = document.getElementById('zoom-track');
     const handle = document.getElementById('zoom-handle');
     if (!track || !handle) return;
 
     handle.addEventListener('mousedown', e => {
-      dragging = true;
-      trackRect = track.getBoundingClientRect();
-      e.preventDefault();
+      dragging = true; trackRect = track.getBoundingClientRect(); e.preventDefault();
     });
-
     window.addEventListener('mousemove', e => {
       if (!dragging) return;
       if (!trackRect) trackRect = track.getBoundingClientRect();
-      const relY = e.clientY - trackRect.top;
-      const pct = Math.max(0, Math.min(1, relY / trackRect.height));
-      Globe.camera.position.z = Math.max(MIN, Math.min(MAX, zoomFromPct(pct)));
+      const pct = Math.max(0, Math.min(1, (e.clientY - trackRect.top) / trackRect.height));
+      Globe.zoom = zoomFromPct(pct);
       update();
     });
-
     window.addEventListener('mouseup', () => { dragging = false; });
-
-    // Click on track
     track.addEventListener('click', e => {
       if (e.target === handle) return;
       trackRect = track.getBoundingClientRect();
-      const relY = e.clientY - trackRect.top;
-      const pct = Math.max(0, Math.min(1, relY / trackRect.height));
-      Globe.camera.position.z = Math.max(MIN, Math.min(MAX, zoomFromPct(pct)));
+      const pct = Math.max(0, Math.min(1, (e.clientY - trackRect.top) / trackRect.height));
+      Globe.zoom = zoomFromPct(pct);
       update();
     });
-
-    // Sync with scroll wheel
-    document.getElementById('gc').addEventListener('wheel', () => {
-      setTimeout(update, 16);
-    }, { passive: true });
-
+    // Sync with scroll
+    document.getElementById('gc').addEventListener('wheel', () => setTimeout(update, 16), { passive: true });
     update();
   }
 
-  return { init, update, step, setZoom };
+  return { init, update, step };
 })();
 
-// ── PROGRESS ───────────────────────────────────────────────
+// ── PROGRESS ──────────────────────────────────────────────
 function setProgress(pct, msg) {
   document.getElementById('lb').style.width = pct + '%';
   document.getElementById('lmsg').textContent = msg;
 }
 
-// ── INIT ───────────────────────────────────────────────────
+// ── INIT ──────────────────────────────────────────────────
 async function init() {
   setProgress(5, 'ESTABLISHING UPLINK...');
   Globe.init();
@@ -303,14 +272,14 @@ async function init() {
   Satellites.list = result.sats;
   setProgress(70, `TRACKING ${Satellites.list.length} OBJECTS...`);
   await new Promise(r => setTimeout(r, 150));
-
   setProgress(80, 'LOADING EARTH TEXTURES...');
   await new Promise(r => setTimeout(r, 800));
-
   setProgress(90, 'COMPUTING ORBITAL POSITIONS...');
+
   Satellites.buildMeshes(false);
   Satellites.propagate(false);
   UI.buildList();
+  UI.buildDataLayers();
 
   document.getElementById('scnt').textContent = Satellites.list.length + ' SAT';
   document.getElementById('sstatus').textContent = 'ONLINE';
@@ -326,9 +295,7 @@ async function init() {
 }
 
 // ── CLOCK ──────────────────────────────────────────────────
-function tick() {
-  document.getElementById('utc').textContent = Utils.formatUTC();
-}
+function tick() { document.getElementById('utc').textContent = Utils.formatUTC(); }
 
 // ── RENDER LOOP ────────────────────────────────────────────
 let lastFPS = 0, fpsCount = 0;
@@ -340,7 +307,6 @@ function animate() {
     document.getElementById('frtcount').textContent = 'RENDER: ' + fpsCount + 'fps';
     fpsCount = 0; lastFPS = now;
   }
-
   Globe.render();
   ZoomLever.update();
 
@@ -351,20 +317,12 @@ function animate() {
       UI.updateDetail();
       Satellites.drawTrail(UI.selectedIdx, UI.godMode);
     }
-    if (UI.selectedType === 'air' && UI.selectedIdx !== null) {
-      Aircraft.place();
-    }
-    if (UI.godMode) {
-      UI.updateThreatCounts();
-      UI.renderGodDashboard();
-    }
+    if (UI.selectedType === 'air' && UI.selectedIdx !== null) Aircraft.place();
+    if (UI.godMode) { UI.updateThreatCounts(); UI.renderGodDashboard(); }
   }
 }
 
-// ── SEARCH ─────────────────────────────────────────────────
-document.getElementById('search').addEventListener('input', e => UI.buildList(e.target.value));
-
-// ── AUTO-REFRESH AIRCRAFT ──────────────────────────────────
+// ── AUTO-REFRESH ───────────────────────────────────────────
 setInterval(() => {
   if (Aircraft.list.length > 0) {
     Aircraft.fetch().then(ok => {
@@ -373,7 +331,6 @@ setInterval(() => {
   }
 }, 60000);
 
-// ── LAUNCH ─────────────────────────────────────────────────
 setInterval(tick, 1000);
 init();
 animate();

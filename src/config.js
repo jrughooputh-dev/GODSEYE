@@ -1,29 +1,30 @@
 // ═══════════════════════════════════════════════════════════
-//  GODS EYE — CONFIG (PUBLIC — SAFE TO COMMIT)
+//  GODS EYE — CONFIG v5.2 (PUBLIC — SAFE TO COMMIT)
 //  Sensitive credentials live in src/config.local.js (gitignored)
-//  config.local.js is loaded BEFORE this file in app.html/index.html
 // ═══════════════════════════════════════════════════════════
 
-// Pull from local config if present, otherwise fail gracefully
 const _LOCAL = window.GODS_EYE_LOCAL || {};
 
 const CONFIG = {
-  version: '5.0.0',
+  version: '5.2.0',
   name: 'GODS EYE',
   subtitle: 'WORLDVIEW OPERATIONS CENTER',
 
-  // ── API & DATA SOURCES ──────────────────────────────────
-  proxy: 'https://corsproxy.io/?',
+  // ── API & DATA SOURCES ───────────────────────────────────
+  proxy:   'https://corsproxy.io/?',
   opensky: 'https://opensky-network.org/api/states/all',
 
-  // AviationStack — flight route data for aircraft detail panel
-  // Key loaded from config.local.js (never committed to git)
   aviationstack: {
-    base: 'https://api.aviationstack.com/v1/flights',
+    base:   'https://api.aviationstack.com/v1/flights',
     apiKey: (_LOCAL.aviationstack && _LOCAL.aviationstack.apiKey) || '',
   },
 
-  // NASA Earth textures (public domain, CDN-hosted)
+  // ADS-B Exchange v2 API key (optional — falls back to prefix detection)
+  get adsbExchangeKey() {
+    return (_LOCAL.adsbexchange && _LOCAL.adsbexchange.apiKey) || '';
+  },
+
+  // NASA Earth textures
   textures: {
     day:    'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
     night:  'https://unpkg.com/three-globe/example/img/earth-night.jpg',
@@ -31,7 +32,7 @@ const CONFIG = {
     clouds: 'https://unpkg.com/three-globe/example/img/earth-clouds.png',
   },
 
-  // ── TLE GROUPS ──────────────────────────────────────────
+  // ── TLE GROUPS ───────────────────────────────────────────
   tleGroups: [
     { label: 'STATIONS', cat: 'iss',      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle' },
     { label: 'STARLINK', cat: 'starlink',  url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle' },
@@ -45,39 +46,56 @@ const CONFIG = {
     { label: 'DEBRIS',   cat: 'debris',    url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=cosmos-1408-debris&FORMAT=tle' },
   ],
 
-  // ── SATELLITE CATEGORY META ─────────────────────────────
+  // ── SATELLITE CATEGORY META ──────────────────────────────
   catMeta: {
-    iss:      { icon: '🛰️',  label: 'ISS',    color: 0xffaa00, godColor: 0xff4400, purpose: 'Crewed Space Station',       cssClass: 'cs'  },
-    starlink: { icon: '📡',  label: 'STRLNK', color: 0x00ccff, godColor: 0xff2200, purpose: 'Communications (Starlink)',  cssClass: 'cst' },
-    weather:  { icon: '🌍',  label: 'WTHR',   color: 0x88ffaa, godColor: 0xff6622, purpose: 'Earth Observation / Weather',cssClass: 'cw'  },
-    nav:      { icon: '🧭',  label: 'NAV',    color: 0xffccaa, godColor: 0xff8844, purpose: 'Navigation / GPS',            cssClass: 'cn'  },
-    science:  { icon: '🔭',  label: 'SCI',    color: 0xff88ff, godColor: 0xff3311, purpose: 'Scientific Research',         cssClass: 'css' },
+    iss:      { icon: '🛰️',  label: 'ISS',    color: 0xffb700, godColor: 0xff4400, purpose: 'Crewed Space Station',       cssClass: 'cs'  },
+    starlink: { icon: '📡',  label: 'STRLNK', color: 0x00f5ff, godColor: 0xff2200, purpose: 'Communications (Starlink)',  cssClass: 'cst' },
+    weather:  { icon: '🌍',  label: 'WTHR',   color: 0x88ffcc, godColor: 0xff6622, purpose: 'Earth Observation / Weather',cssClass: 'cw'  },
+    nav:      { icon: '🧭',  label: 'NAV',    color: 0xffcc88, godColor: 0xff8844, purpose: 'Navigation / GPS',            cssClass: 'cn'  },
+    science:  { icon: '🔭',  label: 'SCI',    color: 0xcc88ff, godColor: 0xff3311, purpose: 'Scientific Research',         cssClass: 'css' },
     iridium:  { icon: '📡',  label: 'IRDM',   color: 0xaaaaff, godColor: 0xff5500, purpose: 'Communications (Iridium)',   cssClass: 'co'  },
-    debris:   { icon: '🗑️',  label: 'DBRS',   color: 0x555555, godColor: 0xff1111, purpose: 'Space Debris',                cssClass: 'cd'  },
-    other:    { icon: '🛰️',  label: 'OBJ',    color: 0x00ff41, godColor: 0xff2020, purpose: 'Other / Unclassified',        cssClass: 'co'  },
-    aircraft: { icon: '✈️',  label: 'ACFT',   color: 0x00bbff, godColor: 0xff0044, purpose: 'Aircraft',                   cssClass: 'ca'  },
+    debris:   { icon: '🗑️',  label: 'DBRS',   color: 0x555577, godColor: 0xff1111, purpose: 'Space Debris',                cssClass: 'cd'  },
+    other:    { icon: '🛰️',  label: 'OBJ',    color: 0x00ff88, godColor: 0xff2020, purpose: 'Other / Unclassified',        cssClass: 'co'  },
+    aircraft: { icon: '✈️',  label: 'ACFT',   color: 0x00f5ff, godColor: 0xff0044, purpose: 'Aircraft',                   cssClass: 'ca'  },
   },
 
-  // ── PERFORMANCE ─────────────────────────────────────────
-  maxAircraft: 1000,
+  // ── MILITARY CALLSIGN PREFIXES ───────────────────────────
+  // Used for prefix-based military detection when ADS-B key unavailable
+  militaryPrefixes: [
+    'RCH','RRR','DUKE','FORTE','TOPCT','JAKE','POLAR','SWORD','VIPER',
+    'VALOR','REACH','ZEUS','ATLAS','TITAN','COBRA','EAGLE','FALCON',
+    'DRAGON','HAWK','GHOST','SHADOW','REAPER','SENTRY','VENUS','MARS',
+    'HOMER','MAGMA','BISON','IRON','STEEL','CHROME','BRONZE','COPPER',
+    'ROCKY','STONE','RANGER','SHIELD','LANCE','SPEAR','ARROW','DAGGER',
+    'STORM','THUNDER','LIGHTNING','CYCLONE','TYPHOON','TEMPEST',
+    'WOLF','BEAR','LION','TIGER','PANTHER','JAGUAR','PUMA','LYNX',
+    'NATO','ANGEL','MERCY','MEDIC','HOSP','EVAC','MEDEVAC','CASEVAC',
+    'LOGAIR','SEALIFT','GOTCHA','DARKSTAR','NIGHTHAWK','SPECTER',
+    'HAVOC','RAPTOR','HORNET','TOMCAT','VENOM','JOLLY','PEDRO',
+    'KNIFE','BLADE','MACE','HAMMER','ANVIL','FORGE','EMBER','ASH',
+    'FURY','WRATH','DANTE','DANTE','TALON','SWOOP','STRIKE','DEMON',
+  ],
+
+  // ── PERFORMANCE ──────────────────────────────────────────
+  maxAircraft:    2000,   // raised from 1000
   maxTrailPoints: 80,
-  satUpdateFrames: 45,
-  listRenderCap: 500,
+  satUpdateFrames:45,
+  listRenderCap:  600,
 
-  // ── RADAR ───────────────────────────────────────────────
+  // ── RADAR ────────────────────────────────────────────────
   radar: {
-    radiusKm: 50,
-    sweepDuration: 4000,
-    maxBlips: 200,
+    radiusKm:     50,
+    sweepDuration:4000,
+    maxBlips:     200,
   },
 
-  // ── TIMEZONES (GOD CLOCK) ──────────────────────────────
+  // ── TIMEZONES (GOD CLOCK) ─────────────────────────────
   timezones: [
     { city: 'TORONTO',     tz: 'America/Toronto',    flag: '🇨🇦', personal: true },
     { city: 'TBILISI',     tz: 'Asia/Tbilisi',       flag: '🇬🇪', personal: true },
     { city: 'TALLINN',     tz: 'Europe/Tallinn',      flag: '🇪🇪', personal: true },
     { city: 'NEW YORK',    tz: 'America/New_York',    flag: '🇺🇸' },
-    { city: 'LOS ANGELES', tz: 'America/Los_Angeles',flag: '🇺🇸' },
+    { city: 'LOS ANGELES', tz: 'America/Los_Angeles', flag: '🇺🇸' },
     { city: 'CHICAGO',     tz: 'America/Chicago',     flag: '🇺🇸' },
     { city: 'LONDON',      tz: 'Europe/London',       flag: '🇬🇧' },
     { city: 'PARIS',       tz: 'Europe/Paris',        flag: '🇫🇷' },
@@ -97,11 +115,10 @@ const CONFIG = {
     { city: 'SAO PAULO',   tz: 'America/Sao_Paulo',  flag: '🇧🇷' },
   ],
 
-  // ── AUTH ────────────────────────────────────────────────
-  // Credential hashes are loaded from config.local.js (gitignored)
+  // ── AUTH ─────────────────────────────────────────────────
   auth: {
-    enabled: true,
-    sessionKey: 'godseye_session',
+    enabled:         true,
+    sessionKey:      'godseye_session',
     sessionDuration: 24 * 60 * 60 * 1000,
     get credentials() {
       if (_LOCAL.auth && _LOCAL.auth.usernameHash) {
@@ -112,7 +129,7 @@ const CONFIG = {
     }
   },
 
-  // ── FALLBACK TLE DATA ──────────────────────────────────
+  // ── FALLBACK TLE ─────────────────────────────────────────
   fallbackTLE: `ISS (ZARYA)
 1 25544U 98067A   24300.52559028  .00020148  00000+0  35858-3 0  9994
 2 25544  51.6382  18.8388 0005831 325.3867  34.6862 15.50286906477050
