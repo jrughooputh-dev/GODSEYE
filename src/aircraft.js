@@ -44,64 +44,6 @@ const Aircraft = (() => {
     return false;
   }
 
-  // ── Plane dot texture ────────────────────────────────────
-  let _planeTex = null, _milTex = null, _godTex = null;
-
-  function getPlaneTex() {
-    if (_planeTex) return _planeTex;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
-    const ctx = cv.getContext('2d');
-    ctx.clearRect(0, 0, 20, 20);
-    // Draw small sharp plane silhouette
-    ctx.fillStyle = '#00f5ff';
-    ctx.beginPath();
-    ctx.moveTo(24, 4);
-    ctx.lineTo(29, 24); ctx.lineTo(44, 29); ctx.lineTo(29, 32);
-    ctx.lineTo(29, 42); ctx.lineTo(24, 40); ctx.lineTo(19, 42);
-    ctx.lineTo(19, 32); ctx.lineTo(4, 29); ctx.lineTo(19, 24);
-    ctx.closePath(); ctx.fill();
-    _planeTex = new THREE.CanvasTexture(cv);
-    _planeTex.magFilter = THREE.NearestFilter;
-    _planeTex.minFilter = THREE.NearestFilter;
-    return _planeTex;
-  }
-
-  function getMilTex() {
-    if (_milTex) return _milTex;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
-    const ctx = cv.getContext('2d');
-    ctx.clearRect(0, 0, 20, 20);
-    ctx.fillStyle = '#ff9900';
-    ctx.beginPath();
-    ctx.moveTo(24, 4);
-    ctx.lineTo(29, 24); ctx.lineTo(44, 29); ctx.lineTo(29, 32);
-    ctx.lineTo(29, 42); ctx.lineTo(24, 40); ctx.lineTo(19, 42);
-    ctx.lineTo(19, 32); ctx.lineTo(4, 29); ctx.lineTo(19, 24);
-    ctx.closePath(); ctx.fill();
-    _milTex = new THREE.CanvasTexture(cv);
-    _milTex.magFilter = THREE.NearestFilter;
-    _milTex.minFilter = THREE.NearestFilter;
-    return _milTex;
-  }
-
-  function getGodTex() {
-    if (_godTex) return _godTex;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
-    const ctx = cv.getContext('2d');
-    ctx.clearRect(0, 0, 20, 20);
-    ctx.fillStyle = '#00ffcc';
-    ctx.beginPath();
-    ctx.moveTo(24, 4);
-    ctx.lineTo(29, 24); ctx.lineTo(44, 29); ctx.lineTo(29, 32);
-    ctx.lineTo(29, 42); ctx.lineTo(24, 40); ctx.lineTo(19, 42);
-    ctx.lineTo(19, 32); ctx.lineTo(4, 29); ctx.lineTo(19, 24);
-    ctx.closePath(); ctx.fill();
-    _godTex = new THREE.CanvasTexture(cv);
-    _godTex.magFilter = THREE.NearestFilter;
-    _godTex.minFilter = THREE.NearestFilter;
-    return _godTex;
-  }
-
   // ── OpenSky Fetch ────────────────────────────────────────
   async function fetch_data() {
     try {
@@ -218,53 +160,53 @@ const Aircraft = (() => {
     } catch (e) { return null; }
   }
 
-  // ── Emoji texture cache ───────────────────────────────────
-  const acEmojiCache = {};
-  function makeAcEmojiTex(emoji) {
-    if (acEmojiCache[emoji]) return acEmojiCache[emoji];
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = 64;
+  // ── Plane dot texture — small triangle/arrowhead ─────────
+  const acDotCache = {};
+  function makeAcDot(color, sz = 24) {
+    const key = color + sz;
+    if (acDotCache[key]) return acDotCache[key];
+    const cv  = document.createElement('canvas');
+    cv.width  = cv.height = sz;
     const ctx = cv.getContext('2d');
-    ctx.clearRect(0, 0, 64, 64);
-    ctx.font = '48px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, 32, 32);
+    ctx.clearRect(0, 0, sz, sz);
+    const cx = sz / 2, cy = sz / 2;
+    // Simple filled triangle pointing up — reads as plane at small scale
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx, 2);
+    ctx.lineTo(sz - 2, sz - 2);
+    ctx.lineTo(cx, sz - 6);
+    ctx.lineTo(2, sz - 2);
+    ctx.closePath();
+    ctx.fill();
     const tex = new THREE.CanvasTexture(cv);
-    tex.magFilter = THREE.LinearFilter;
-    tex.minFilter = THREE.LinearFilter;
-    acEmojiCache[emoji] = tex;
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    acDotCache[key] = tex;
     return tex;
   }
 
-  function makeAcLabelTex(emoji, cs, lColor) {
+  function makeAcLabel(cs, lColor) {
     const cv  = document.createElement('canvas');
     const ctx = cv.getContext('2d');
-    const fontSize = 9;
-    const emojiFont = `${fontSize + 4}px serif`;
-    const textFont  = `${fontSize}px "Share Tech Mono", monospace`;
-    ctx.font = emojiFont;
-    const ew = ctx.measureText(emoji).width;
-    ctx.font = textFont;
-    const tw = ctx.measureText(cs).width;
-    const pad = 4, gap = 3;
-    cv.width  = Math.ceil(ew + gap + tw + pad * 2);
-    cv.height = fontSize + pad * 2 + 2;
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    const fs  = 9;
+    ctx.font  = `${fs}px "Share Tech Mono", monospace`;
+    const tw  = ctx.measureText(cs).width;
+    const pad = 3;
+    cv.width  = Math.ceil(tw + pad * 2);
+    cv.height = fs + pad * 2;
+    ctx.font  = `${fs}px "Share Tech Mono", monospace`;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.font = emojiFont;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, pad, cv.height / 2);
-    ctx.font = textFont;
     ctx.fillStyle = lColor;
     ctx.textBaseline = 'middle';
-    ctx.fillText(cs, pad + ew + gap, cv.height / 2 + 1);
+    ctx.fillText(cs, pad, cv.height / 2 + 1);
     const tex = new THREE.CanvasTexture(cv);
     tex.magFilter = THREE.LinearFilter;
     tex.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     const spr = new THREE.Sprite(mat);
-    const h = 0.045;
+    const h = 0.038;
     spr.scale.set((cv.width / cv.height) * h, h, 1);
     return spr;
   }
@@ -283,22 +225,19 @@ const Aircraft = (() => {
     airLabels = [];
 
     aircraft.forEach((ac, idx) => {
-      // ✈️ civil, 🛩️ military, both teal in god mode
-      const emoji = godMode ? '✈️' : ac.military ? '🛩️' : '✈️';
-      const tex   = makeAcEmojiTex(emoji);
-      const mat   = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.95 });
+      const lColor = godMode ? '#00ffcc' : ac.military ? '#ff9900' : '#00f5ff';
+      const tex    = makeAcDot(lColor, 24);
+      const mat    = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.9 });
       const sprite = new THREE.Sprite(mat);
-      sprite.scale.setScalar(0.018);
+      sprite.scale.setScalar(0.010);
       sprite.userData = { idx, type: 'air', obj: ac };
       Globe.airGroup.add(sprite);
       airMeshes.push(sprite);
 
-      // Label with emoji prefix
-      const cs     = (ac.callsign || ac.icao24 || 'UNK').substring(0, 8).trim();
-      const alt    = ac.baro_altitude || ac.geo_altitude;
-      const fl     = alt ? ' · FL' + Math.round(alt * 3.28084 / 100) : '';
-      const lColor = godMode ? '#00ffcc' : ac.military ? '#ff9900' : '#00f5ff';
-      const label  = makeAcLabelTex(emoji, cs + fl, lColor);
+      const cs    = (ac.callsign || ac.icao24 || 'UNK').substring(0, 8).trim();
+      const alt   = ac.baro_altitude || ac.geo_altitude;
+      const fl    = alt ? ' FL' + Math.round(alt * 3.28084 / 100) : '';
+      const label = makeAcLabel(cs + fl, lColor);
       label.visible = false;
       label.userData = { idx, airLabel: true };
       Globe.labelGroup.add(label);

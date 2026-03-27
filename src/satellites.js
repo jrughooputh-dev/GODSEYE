@@ -150,58 +150,52 @@ const Satellites = (() => {
     return satellites.findIndex(s => s.cat === 'iss' && (s.name.includes('ISS') || s.name.includes('ZARYA')));
   }
 
-  // ── Emoji sprite cache ──────────────────────────────────
-  const emojiTexCache = {};
+  // ── Cross/plus pixel marker texture ─────────────────────
+  // Matches the reference screenshot — small bright + shape
+  const crossTexCache = {};
 
-  function makeEmojiTex(emoji, size = 64) {
-    if (emojiTexCache[emoji + size]) return emojiTexCache[emoji + size];
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = size;
+  function makeCrossTex(color, sz = 32) {
+    const key = color + sz;
+    if (crossTexCache[key]) return crossTexCache[key];
+    const cv  = document.createElement('canvas');
+    cv.width  = cv.height = sz;
     const ctx = cv.getContext('2d');
-    ctx.clearRect(0, 0, size, size);
-    ctx.font = `${Math.floor(size * 0.72)}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, size / 2, size / 2);
+    ctx.clearRect(0, 0, sz, sz);
+    const cx = sz / 2, arm = Math.floor(sz * 0.38), w = Math.max(2, Math.floor(sz * 0.13));
+    ctx.fillStyle = color;
+    // Horizontal bar
+    ctx.fillRect(cx - arm, cx - w/2, arm * 2, w);
+    // Vertical bar
+    ctx.fillRect(cx - w/2, cx - arm, w, arm * 2);
     const tex = new THREE.CanvasTexture(cv);
-    tex.magFilter = THREE.LinearFilter;   // smooth emoji
-    tex.minFilter = THREE.LinearFilter;
-    emojiTexCache[emoji + size] = tex;
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    crossTexCache[key] = tex;
     return tex;
   }
 
-  function makeEmojiLabelTex(emoji, text, color, fontSize = 9) {
-    // Combined emoji + text label: "📡 ISS" or "🛰️ SAT-12345"
+  // Label sprite — clean text only, no emoji prefix
+  function makeSatLabelTex(text, color, fontSize = 9) {
     const cv  = document.createElement('canvas');
     const ctx = cv.getContext('2d');
-    const emojiFont = `${fontSize + 4}px serif`;
-    const textFont  = `${fontSize}px "Share Tech Mono", monospace`;
-    ctx.font = emojiFont;
-    const ew = ctx.measureText(emoji).width;
-    ctx.font = textFont;
-    const tw = ctx.measureText(text).width;
-    const pad = 4, gap = 3;
-    cv.width  = Math.ceil(ew + gap + tw + pad * 2);
-    cv.height = fontSize + pad * 2 + 2;
-    // bg
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.font  = `${fontSize}px "Share Tech Mono", monospace`;
+    const tw  = ctx.measureText(text).width;
+    const pad = 3;
+    cv.width  = Math.ceil(tw + pad * 2);
+    cv.height = fontSize + pad * 2;
+    ctx.font  = `${fontSize}px "Share Tech Mono", monospace`;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, cv.width, cv.height);
-    // emoji
-    ctx.font = emojiFont;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, pad, cv.height / 2);
-    // text
-    ctx.font = textFont;
     ctx.fillStyle = color;
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, pad + ew + gap, cv.height / 2 + 1);
+    ctx.fillText(text, pad, cv.height / 2 + 1);
     const tex = new THREE.CanvasTexture(cv);
     tex.magFilter = THREE.LinearFilter;
     tex.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     const spr = new THREE.Sprite(mat);
-    const charW = 0.011;
-    spr.scale.set((cv.width / cv.height) * charW * cv.height / 8, charW * cv.height / 8, 1);
+    const h = 0.038;
+    spr.scale.set((cv.width / cv.height) * h, h, 1);
     return spr;
   }
 
@@ -215,25 +209,27 @@ const Satellites = (() => {
     satLabels = [];
 
     satellites.forEach((sat, idx) => {
-      const isISS  = sat.cat === 'iss';
-      // Emoji for the dot itself
-      const emoji  = isISS ? '📡' : '🛰️';
-      const tex    = makeEmojiTex(emoji, isISS ? 80 : 64);
+      const isISS = sat.cat === 'iss';
+      // Color by category — matching reference green/yellow dot palette
+      const colStr = dotColorStr(sat.cat, godMode);
+      const dotSz  = isISS ? 32 : sat.cat === 'debris' ? 16 : 24;
+      const tex    = makeCrossTex(colStr, dotSz);
       const mat    = new THREE.SpriteMaterial({
         map: tex, transparent: true, depthTest: false,
-        opacity: sat.cat === 'debris' ? 0.35 : 1.0,
+        opacity: sat.cat === 'debris' ? 0.3 : isISS ? 1.0 : 0.85,
       });
       const sprite = new THREE.Sprite(mat);
-      const scale  = isISS ? 0.028 : sat.cat === 'debris' ? 0.006 : 0.012;
+      // World-space scale — ISS slightly larger, debris tiny
+      const scale  = isISS ? 0.014 : sat.cat === 'debris' ? 0.004 : 0.007;
       sprite.scale.setScalar(scale);
       sprite.userData = { idx, type: 'sat', obj: sat };
       Globe.satGroup.add(sprite);
       satMeshes.push(sprite);
 
-      // ── Combined emoji+text label ──
-      const labelText = isISS ? 'ISS' : sat.name.length <= 14 ? sat.name : `SAT-${sat.id}`;
-      const lc = labelColor(sat.cat, godMode);
-      const label = makeEmojiLabelTex(emoji, labelText, lc, isISS ? 10 : 8);
+      // Text label — shown only when zoomed in
+      const labelText = isISS ? 'ISS' : sat.name.length <= 16 ? sat.name : `SAT-${sat.id}`;
+      const lc    = labelColor(sat.cat, godMode);
+      const label = makeSatLabelTex(labelText, lc, isISS ? 10 : 8);
       label.visible = false;
       label.userData = { idx, satLabel: true };
       Globe.labelGroup.add(label);
@@ -360,12 +356,12 @@ const Satellites = (() => {
   function select(idx, godMode) {
     selectedIdx = idx;
 
-    // Reset all emoji sprite sizes first
+    // Reset all cross sprite sizes first
     satellites.forEach((_, i) => {
       if (!satMeshes[i]) return;
       const s = satellites[i];
       satMeshes[i].scale.setScalar(
-        s.cat === 'iss' ? 0.028 : s.cat === 'debris' ? 0.006 : 0.012
+        s.cat === 'iss' ? 0.014 : s.cat === 'debris' ? 0.004 : 0.007
       );
     });
 
@@ -379,10 +375,10 @@ const Satellites = (() => {
       return;
     }
 
-    // Enlarge selected emoji slightly
+    // Enlarge selected cross marker slightly
     if (satMeshes[idx]) {
-      const base = satellites[idx].cat === 'iss' ? 0.028 : 0.012;
-      satMeshes[idx].scale.setScalar(base * 1.6);
+      const base = satellites[idx].cat === 'iss' ? 0.014 : 0.007;
+      satMeshes[idx].scale.setScalar(base * 2.0);
     }
 
     // Isolate: hide all others

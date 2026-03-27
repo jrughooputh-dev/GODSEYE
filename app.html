@@ -305,13 +305,40 @@ function resetGlobe() {
   Globe.rotY = 0;
   Globe.zoom = 3.6;
   Globe.autoRot = true;
-  animate._lastKey = null; // force visibility re-evaluation
   const lbl = document.getElementById('zlabel');
   if (lbl) lbl.textContent = 'ZOOM: 3.6x';
   ZoomLever.update();
-  UI.deselect();
-  TrackBracket.hide();
+  UI.deselect();   // calls SceneState.restore() + TrackBracket.hide() internally
 }
+
+// ── SCENE STATE — called once on select/deselect, not per-frame
+const SceneState = (() => {
+  function isolate(type, idx) {
+    // Hide EVERYTHING except the tracked object
+    Globe.satGroup.visible    = type === 'sat';
+    Globe.airGroup.visible    = type === 'air';
+    if (Globe.geoGrid)    Globe.geoGrid.visible    = false;
+    if (Globe.flagGroup)  Globe.flagGroup.visible  = false;
+    if (Globe.cloudsMesh) Globe.cloudsMesh.visible = false;
+    // Hide all labels, show only tracked label
+    Globe.labelGroup.children.forEach(c => {
+      c.visible = (c.userData.satLabel && c.userData.idx === idx && type === 'sat') ||
+                  (c.userData.airLabel && c.userData.idx === idx && type === 'air');
+    });
+  }
+
+  function restore() {
+    Globe.satGroup.visible    = true;
+    Globe.airGroup.visible    = true;
+    if (Globe.geoGrid)    Globe.geoGrid.visible    = true;
+    if (Globe.flagGroup)  Globe.flagGroup.visible  = true;
+    if (Globe.cloudsMesh) Globe.cloudsMesh.visible = true;
+    // Labels restored by applyCatFilter based on zoom
+    Satellites.applyCatFilter();
+  }
+
+  return { isolate, restore };
+})();
 
 // ── PROGRESS ─────────────────────────────────────────────
 function setProgress(pct, msg) {
@@ -396,53 +423,10 @@ function animate() {
   ZoomLever.update();
   TrackBracket.update();
 
-  // ── Scene visibility manager ──────────────────────────────
-  // Runs whenever zoom changes, or tracking state changes
-  const curZoom    = Globe.zoom;
-  const isTracking = UI.selectedIdx !== null;
-  const zoomKey    = Math.round(curZoom * 10) + '_' + (isTracking ? '1' : '0');
-
-  if (zoomKey !== animate._lastKey) {
-    animate._lastKey = zoomKey;
-
-    // Thresholds
-    const CLOSE      = 2.5;   // start hiding clutter
-    const VERY_CLOSE = 1.9;   // hide almost everything
-    const zoomed     = curZoom <= CLOSE;
-    const veryZoomed = curZoom <= VERY_CLOSE;
-
-    if (isTracking) {
-      // Tracking something — hide everything except the target
-      Globe.airGroup.visible   = UI.selectedType === 'air';   // only if tracking a plane
-      Globe.satGroup.visible   = UI.selectedType === 'sat';   // only if tracking a sat
-      // Hide ALL labels except the tracked object's label
-      Globe.labelGroup.children.forEach(c => {
-        const isTrackedSat = c.userData.satLabel && c.userData.idx === UI.selectedIdx && UI.selectedType === 'sat';
-        const isTrackedAir = c.userData.airLabel && c.userData.idx === UI.selectedIdx && UI.selectedType === 'air';
-        c.visible = (isTrackedSat || isTrackedAir) && curZoom <= Satellites.LABEL_ZOOM_THRESHOLD;
-      });
-      // Hide geo grid and flags when zoomed in tracking
-      if (Globe.geoGrid)   Globe.geoGrid.visible   = !zoomed;
-      if (Globe.flagGroup) Globe.flagGroup.visible  = !zoomed;
-      // Hide clouds and star field when very close
-      if (Globe.cloudsMesh) Globe.cloudsMesh.visible = !veryZoomed;
-    } else {
-      // Not tracking — restore normal visibility
-      Globe.airGroup.visible = true;
-      Globe.satGroup.visible = true;
-      Globe.labelGroup.children.forEach(c => {
-        const isSat = c.userData.satLabel;
-        const isAir = c.userData.airLabel;
-        c.visible = curZoom <= Satellites.LABEL_ZOOM_THRESHOLD &&
-          (isSat ? Satellites.catFilter[Satellites.list[c.userData.idx]?.cat] !== false : isAir);
-      });
-      if (Globe.geoGrid)    Globe.geoGrid.visible    = true;
-      if (Globe.flagGroup)  Globe.flagGroup.visible  = true;
-      if (Globe.cloudsMesh) Globe.cloudsMesh.visible = true;
-      // Also re-run cat filter for satellite visibility
-      Satellites.applyCatFilter();
-    }
-  }
+  // ── Scene visibility — state machine, NO zoom polling ────
+  // Only re-evaluates on explicit state change (select/deselect)
+  // animate._trackingState is set by selectSat/selectAir/deselect
+  // Values: null = unset, 'none' = not tracking, 'sat:N' = sat idx N, 'air:N' = air idx N
 
   if (Globe.frame % CONFIG.satUpdateFrames === 0) {
     Satellites.propagate(UI.godMode);

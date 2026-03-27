@@ -432,6 +432,8 @@ const UI = (() => {
     Satellites.select(idx, godMode);
     // Clear aircraft brackets
     Globe.bracketGroup.children.filter(c => c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
+    // Isolate — hide everything except this satellite
+    if (typeof SceneState !== 'undefined') SceneState.isolate('sat', idx);
     // Show untrack button + DOM blinking bracket
     const _satName = sat ? (sat.name.length > 18 ? `SAT-${sat.id}` : sat.name) : '';
     showUntrackBtn('sat', _satName);
@@ -453,7 +455,7 @@ const UI = (() => {
     document.getElementById('poslabel').textContent = 'LAT: -- LON: --';
     hideUntrackBtn();
     if (typeof TrackBracket !== 'undefined') TrackBracket.hide();
-    if (typeof animate !== 'undefined') animate._lastKey = null;
+    if (typeof SceneState  !== 'undefined') SceneState.restore();
     buildList();
   }
 
@@ -565,6 +567,7 @@ const UI = (() => {
     document.getElementById('dname').innerHTML = _airNameHTML(ac, cs);
     document.getElementById('dbody').innerHTML = _airBasicHTML(ac, cs);
     showUntrackBtn('air', cs);
+    if (typeof SceneState !== 'undefined') SceneState.isolate('air', idx);
     if (typeof TrackBracket !== 'undefined') TrackBracket.show('air', idx, cs);
     const route = await Aircraft.fetchRoute(cs);
     _renderAirFull(ac, cs, route);
