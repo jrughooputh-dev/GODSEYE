@@ -18,18 +18,18 @@
     <div class="hitem"><div class="dot" id="sdot"></div><span id="sstatus">INIT</span></div>
     <div class="hitem"><div class="dot amber"></div><span id="scnt">-- SAT</span></div>
     <div class="hitem"><div class="dot blue" id="adot"></div><span id="acnt">-- ACFT</span></div>
-    <button class="hdr-btn" id="tog-nvg" onclick="UI.toggleLayer('nvg')" title="Night Vision">🌙 NVG</button>
-    <button class="hdr-btn" id="tog-flir" onclick="UI.toggleLayer('flir')" title="Thermal">🔴 FLIR</button>
-    <button class="hdr-btn" id="reset-btn" onclick="resetGlobe()" title="Reset globe orientation and zoom">⟳ RESET</button>
-    <button class="hdr-btn" id="clock-btn" onclick="GodClock.toggle()">⏱ CLOCK</button>
-    <button class="hdr-btn" id="radar-btn" onclick="UI.toggleRadar()">📡 RADAR</button>
-    <button class="hdr-btn" id="god-btn" onclick="UI.toggleGodView()">☠ GOD VIEW</button>
+    <button class="hdr-btn" id="tog-nvg" onclick="UI.toggleLayer('nvg')" title="Night Vision">ð NVG</button>
+    <button class="hdr-btn" id="tog-flir" onclick="UI.toggleLayer('flir')" title="Thermal">ð´ FLIR</button>
+    <button class="hdr-btn" id="reset-btn" onclick="resetGlobe()" title="Reset globe orientation and zoom">â³ RESET</button>
+    <button class="hdr-btn" id="clock-btn" onclick="GodClock.toggle()">â± CLOCK</button>
+    <button class="hdr-btn" id="radar-btn" onclick="UI.toggleRadar()">ð¡ RADAR</button>
+    <button class="hdr-btn" id="god-btn" onclick="UI.toggleGodView()">â  GOD VIEW</button>
     <button class="hdr-btn" id="logout-btn" onclick="Auth.logout()">LOGOUT</button>
     <div id="utc">--:--:-- UTC</div>
   </div>
 </header>
 
-<!-- ── LEFT PANEL ── -->
+<!-- ââ LEFT PANEL ââ -->
 <aside id="lp">
   <div class="ph"><span id="panel-label">// TRACKED OBJECTS</span><span class="pc" id="lcount">0</span></div>
 
@@ -58,7 +58,7 @@
       <div class="filter-pill active" data-filter="all" onclick="UI.setFilterType('all')">ALL</div>
       <div class="filter-pill" data-filter="sat" onclick="UI.setFilterType('sat')">SAT</div>
       <div class="filter-pill" data-filter="air" onclick="UI.setFilterType('air')">FLIGHTS</div>
-      <div class="filter-pill mil" data-filter="mil" onclick="UI.setFilterType('mil')">🪖 MIL</div>
+      <div class="filter-pill mil" data-filter="mil" onclick="UI.setFilterType('mil')">ðª MIL</div>
     </div>
     <input id="country-filter" type="text" placeholder="> FILTER BY COUNTRY..." autocomplete="off" spellcheck="false"
       oninput="UI.setFilterCountry(this.value)">
@@ -75,14 +75,14 @@
   <!-- GOD CLOCK overlay -->
   <div id="god-clock-overlay">
     <div id="god-clock-hdr">
-      <span>⏱ GOD CLOCK // WORLD TIME</span>
-      <span id="god-clock-close" onclick="GodClock.toggle()">×</span>
+      <span>â± GOD CLOCK // WORLD TIME</span>
+      <span id="god-clock-close" onclick="GodClock.toggle()">Ã</span>
     </div>
     <div id="god-clock-body"></div>
   </div>
 </aside>
 
-<!-- ── GLOBE ── -->
+<!-- ââ GLOBE ââ -->
 <main id="gw">
   <canvas id="gc"></canvas>
   <div id="shader-overlay"></div>
@@ -97,8 +97,8 @@
     <div class="glabel gl-tl" id="gl-tl">GLOBAL SURVEILLANCE NETWORK</div>
     <div class="glabel gl-tr" id="zlabel">ZOOM: 1.0x</div>
     <div class="glabel gl-bl" id="poslabel">LAT: -- LON: --</div>
-    <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK · OPENSKY · ADS-B</div>
-    <!-- DOM bracket overlay — follows tracked object via JS projection -->
+    <div class="glabel gl-br" id="gl-br">SRC: CELESTRAK Â· OPENSKY Â· ADS-B</div>
+    <!-- DOM bracket overlay â follows tracked object via JS projection -->
     <div id="track-bracket">
       <div class="tb-corner tb-tl"></div>
       <div class="tb-corner tb-tr"></div>
@@ -111,10 +111,10 @@
   <!-- Zoom Lever -->
   <div id="zoom-lever">
     <button id="zoom-in-btn" onclick="ZoomLever.step(1)" title="Zoom in">+</button>
-    <div id="zoom-val">1.0×</div>
+    <div id="zoom-val">1.0Ã</div>
     <div id="zoom-track"><div id="zoom-handle"></div></div>
     <div id="zoom-lever-label">ZOOM</div>
-    <button id="zoom-out-btn" onclick="ZoomLever.step(-1)" title="Zoom out">−</button>
+    <button id="zoom-out-btn" onclick="ZoomLever.step(-1)" title="Zoom out">â</button>
   </div>
 
   <div id="loading">
@@ -125,7 +125,7 @@
   </div>
 </main>
 
-<!-- ── RIGHT PANEL ── -->
+<!-- ââ RIGHT PANEL ââ -->
 <aside id="rp">
   <div class="rph" id="rph-label">// OBJECT TELEMETRY</div>
   <div id="dname"><span style="color:var(--cd);font-size:9px;letter-spacing:2px;opacity:.5">AWAITING TARGET LOCK</span></div>
@@ -136,13 +136,13 @@
   <!-- RADAR PANEL (inline) -->
   <div id="radar-panel">
     <div class="radar-hdr">
-      <span>📡 PROXIMITY RADAR</span>
+      <span>ð¡ PROXIMITY RADAR</span>
       <div class="radar-hdr-btns">
         <button class="radar-range-btn active" data-range="10" onclick="Radar.setRange(10)">10km</button>
         <button class="radar-range-btn" data-range="50" onclick="Radar.setRange(50)">50km</button>
         <button class="radar-range-btn" data-range="200" onclick="Radar.setRange(200)">200km</button>
-        <button class="radar-ctrl-btn" id="radar-expand-btn" onclick="Radar.toggleExpand()" title="Expand radar">⊞</button>
-        <span class="radar-close" onclick="UI.toggleRadar()">×</span>
+        <button class="radar-ctrl-btn" id="radar-expand-btn" onclick="Radar.toggleExpand()" title="Expand radar">â</button>
+        <span class="radar-close" onclick="UI.toggleRadar()">Ã</span>
       </div>
     </div>
     <div class="radar-status-bar">
@@ -164,8 +164,8 @@
 <footer id="ftr">
   <span id="ftr-label">GODS EYE v5.2 // UNCLASSIFIED // PUBLIC DATA ONLY</span>
   <div class="fitems">
-    <a href="mobile.html" style="color:var(--cd);text-decoration:none;letter-spacing:1px;font-size:8px;border:1px solid var(--bo);padding:2px 8px" target="_blank">📱 MOBILE RADAR</a>
-    <span>CELESTRAK · OPENSKY · AVIATIONSTACK · ADS-B EXCHANGE</span>
+    <a href="mobile.html" style="color:var(--cd);text-decoration:none;letter-spacing:1px;font-size:8px;border:1px solid var(--bo);padding:2px 8px" target="_blank">ð± MOBILE RADAR</a>
+    <span>CELESTRAK Â· OPENSKY Â· AVIATIONSTACK Â· ADS-B EXCHANGE</span>
     <span id="lupdate">SYNC: --</span>
     <span id="frtcount">RENDER: 0fps</span>
   </div>
@@ -178,7 +178,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
 
-<!-- LOCAL CONFIG — gitignored -->
+<!-- LOCAL CONFIG â gitignored -->
 <script src="src/config.local.js" onerror="window.GODS_EYE_LOCAL={}"></script>
 
 <!-- App modules -->
@@ -197,7 +197,7 @@
 
 if (!Auth.isAuthenticated()) { window.location.href = 'index.html'; }
 
-// ── ZOOM LEVER ────────────────────────────────────────────
+// ââ ZOOM LEVER ââââââââââââââââââââââââââââââââââââââââââââ
 const ZoomLever = (() => {
   const MIN = 1.5, MAX = 10;
   let dragging = false, trackRect = null;
@@ -214,7 +214,7 @@ const ZoomLever = (() => {
     const hud    = document.getElementById('zlabel');
     if (!track || !handle) return;
     handle.style.top = (pct * track.clientHeight) + 'px';
-    if (val) val.textContent = z.toFixed(1) + '×';
+    if (val) val.textContent = z.toFixed(1) + 'Ã';
     if (hud) hud.textContent = 'ZOOM: ' + z.toFixed(1) + 'x';
   }
 
@@ -254,7 +254,7 @@ const ZoomLever = (() => {
   return { init, update, step };
 })();
 
-// ── TRACKING BRACKET — DOM overlay projected from 3D pos ──
+// ââ TRACKING BRACKET â DOM overlay projected from 3D pos ââ
 const TrackBracket = (() => {
   const el    = document.getElementById('track-bracket');
   const label = document.getElementById('tb-label');
@@ -282,7 +282,7 @@ const TrackBracket = (() => {
     }
     if (!worldPos) { hide(); return; }
 
-    // Project 3D world position → 2D screen
+    // Project 3D world position â 2D screen
     const screen = Utils.worldToScreen(worldPos, Globe.rotX, Globe.rotY, Globe.camera,
       Globe.wrap.clientWidth, Globe.wrap.clientHeight);
 
@@ -290,7 +290,7 @@ const TrackBracket = (() => {
     el.style.opacity  = '1';
     el.style.left     = screen.x + 'px';
     el.style.top      = screen.y + 'px';
-    // Size bracket based on zoom — tighter when zoomed in
+    // Size bracket based on zoom â tighter when zoomed in
     const sz = Math.max(22, Math.min(48, 32 / Globe.zoom * 2));
     el.style.width  = sz + 'px';
     el.style.height = sz + 'px';
@@ -299,7 +299,7 @@ const TrackBracket = (() => {
   return { show, hide, update };
 })();
 
-// ── RESET GLOBE ───────────────────────────────────────────
+// ââ RESET GLOBE âââââââââââââââââââââââââââââââââââââââââââ
 function resetGlobe() {
   Globe.rotX = 0.3;
   Globe.rotY = 0;
@@ -311,11 +311,11 @@ function resetGlobe() {
   UI.deselect();   // calls SceneState.restore() + TrackBracket.hide() internally
 }
 
-// ── SCENE STATE — called once on select/deselect, not per-frame
+// ââ SCENE STATE â called once on select/deselect, not per-frame
 const SceneState = (() => {
   function isolate(type, idx) {
     // Hide EVERYTHING except the tracked object
-    // For satellites — use Points color zeroing rather than group hide
+    // For satellites â use Points color zeroing rather than group hide
     if (type === 'sat') {
       // Keep satGroup visible but zero out all colors except tracked
       Globe.satGroup.visible = true;
@@ -347,13 +347,13 @@ const SceneState = (() => {
   return { isolate, restore };
 })();
 
-// ── PROGRESS ─────────────────────────────────────────────
+// ââ PROGRESS âââââââââââââââââââââââââââââââââââââââââââââ
 function setProgress(pct, msg) {
   document.getElementById('lb').style.width = pct + '%';
   document.getElementById('lmsg').textContent = msg;
 }
 
-// ── INIT ──────────────────────────────────────────────────
+// ââ INIT ââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function init() {
   setProgress(5, 'ESTABLISHING UPLINK...');
   Globe.init();
@@ -364,12 +364,12 @@ async function init() {
 
   setProgress(10, 'CONNECTING TO CELESTRAK...');
   const result = await Satellites.fetchAll((label, count, i, total) => {
-    setProgress(10 + ((i + 1) / total) * 55, `LOADED ${label} — ${count} OBJ`);
+    setProgress(10 + ((i + 1) / total) * 55, `LOADED ${label} â ${count} OBJ`);
   });
 
   if (result.fallback) {
     document.getElementById('lerr').style.display = 'block';
-    document.getElementById('lerr').textContent = 'CELESTRAK CORS RESTRICTED — USING BUILT-IN TLE DATASET';
+    document.getElementById('lerr').textContent = 'CELESTRAK CORS RESTRICTED â USING BUILT-IN TLE DATASET';
   }
 
   Satellites.list = result.sats;
@@ -384,21 +384,27 @@ async function init() {
   UI.buildList();
   UI.buildDataLayers();
 
-  // Auto-load aircraft on startup
+  // Auto-load aircraft in background â don't block init
   setProgress(92, 'LOADING LIVE FLIGHTS...');
-  Aircraft.fetch().then(ok => {
-    if (ok) {
-      Aircraft.buildMeshes(false);
-      Aircraft.place();
-      Globe.airGroup.visible = true;
-      document.getElementById('acnt').textContent = Aircraft.list.length + ' ACFT';
-      document.getElementById('adot').style.boxShadow = '0 0 8px #00f5ff';
-      UI.buildList();
-      UI.buildDataLayers();
-    } else {
-      document.getElementById('acnt').textContent = 'ACFT OFFLINE';
-    }
-  });
+  // Fire and forget â aircraft loads after globe is ready
+  setTimeout(() => {
+    Aircraft.fetch().then(ok => {
+      if (ok) {
+        Aircraft.buildMeshes(false);
+        Aircraft.place();
+        Globe.airGroup.visible = true;
+        const acntEl = document.getElementById('acnt');
+        const adotEl = document.getElementById('adot');
+        if (acntEl) acntEl.textContent = Aircraft.list.length + ' ACFT';
+        if (adotEl) adotEl.style.boxShadow = '0 0 8px #00f5ff';
+        UI.buildList();
+        UI.buildDataLayers();
+      } else {
+        const acntEl = document.getElementById('acnt');
+        if (acntEl) acntEl.textContent = 'ACFT OFFLINE';
+      }
+    }).catch(() => {});
+  }, 500);
 
   document.getElementById('scnt').textContent = Satellites.list.length + ' SAT';
   document.getElementById('sstatus').textContent = 'ONLINE';
@@ -413,10 +419,10 @@ async function init() {
   Globe.autoRot = true;
 }
 
-// ── CLOCK ──────────────────────────────────────────────────
+// ââ CLOCK ââââââââââââââââââââââââââââââââââââââââââââââââââ
 function tick() { document.getElementById('utc').textContent = Utils.formatUTC(); }
 
-// ── RENDER LOOP ────────────────────────────────────────────
+// ââ RENDER LOOP ââââââââââââââââââââââââââââââââââââââââââââ
 let lastFPS = 0, fpsCount = 0;
 function animate() {
   requestAnimationFrame(animate);
@@ -430,7 +436,7 @@ function animate() {
   ZoomLever.update();
   TrackBracket.update();
 
-  // ── Scene visibility — state machine, NO zoom polling ────
+  // ââ Scene visibility â state machine, NO zoom polling ââââ
   // Only re-evaluates on explicit state change (select/deselect)
   // animate._trackingState is set by selectSat/selectAir/deselect
   // Values: null = unset, 'none' = not tracking, 'sat:N' = sat idx N, 'air:N' = air idx N
@@ -447,7 +453,7 @@ function animate() {
   }
 }
 
-// ── AUTO-REFRESH ───────────────────────────────────────────
+// ââ AUTO-REFRESH âââââââââââââââââââââââââââââââââââââââââââ
 setInterval(() => {
   if (Aircraft.list.length > 0) {
     Aircraft.fetch().then(ok => {
