@@ -1,9 +1,9 @@
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  GODS EYE â AIRCRAFT MODULE v5.2
+// ═══════════════════════════════════════════════════════════
+//  GODS EYE — AIRCRAFT MODULE v5.2
 //  OpenSky positions + AviationStack route enrichment
 //  ADS-B Exchange military feed
 //  Floating callsign labels, bracket reticle on selection
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════
 
 const Aircraft = (() => {
   let aircraft      = [];
@@ -13,10 +13,10 @@ const Aircraft = (() => {
 
   const routeCache  = {};
 
-  // ââ Label zoom threshold âââââââââââââââââââââââââââââââââ
+  // ── Label zoom threshold ─────────────────────────────────
   const LABEL_ZOOM_THRESHOLD = 2.3;
 
-  // ââ Military callsign prefix detection ââââââââââââââââââ
+  // ── Military callsign prefix detection ──────────────────
   // Covers USAF, USN, Army, NATO allies, known mil prefixes
   const MIL_PREFIXES = (CONFIG.militaryPrefixes || [
     'RCH','RRR','DUKE','FORTE','TOPCT','JAKE','POLAR','SWORD','VIPER',
@@ -44,10 +44,10 @@ const Aircraft = (() => {
     return false;
   }
 
-  // ââ OpenSky Fetch ââââââââââââââââââââââââââââââââââââââââ
+  // ── OpenSky Fetch ────────────────────────────────────────
   async function fetch_data() {
     try {
-      // Use CORS proxy â direct OpenSky fetch fails on GitHub Pages
+      // Use CORS proxy — direct OpenSky fetch fails on GitHub Pages
       const url = CONFIG.proxy + encodeURIComponent(CONFIG.opensky);
       const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
       if (!res.ok) throw new Error('OpenSky ' + res.status);
@@ -61,16 +61,20 @@ const Aircraft = (() => {
           velocity: s[9], true_track: s[10], vertical_rate: s[11],
           geo_altitude: s[13], squawk: s[14],
           route: routeCache[s[1]?.trim()] || null,
-          military: false,
+          military: false, // military flag — set by detectMilitary or ADS-B
           source: 'opensky',
         }));
+
+      // Flag military from OpenSky
       aircraft.forEach(ac => { ac.military = isMilitary(ac); });
       return true;
     } catch (e) { return false; }
   }
 
+  // ── ADS-B Exchange Military Feed ─────────────────────────
   async function fetchMilitary() {
     try {
+      // ADS-B Exchange v2 API — military endpoint
       const url = 'https://adsbexchange.com/api/aircraft/v2/mil/';
       const res = await fetch(CONFIG.proxy + encodeURIComponent(url), {
         headers: { 'api-auth': CONFIG.adsbExchangeKey || '' },
@@ -87,24 +91,37 @@ const Aircraft = (() => {
           lon: parseFloat(a.lon), lat: parseFloat(a.lat),
           baro_altitude: a.alt_baro ? parseFloat(a.alt_baro) * 0.3048 : null,
           geo_altitude:  a.alt_geom ? parseFloat(a.alt_geom) * 0.3048 : null,
-          velocity: a.gs ? parseFloat(a.gs) * 0.514444 : null,
+          velocity: a.gs ? parseFloat(a.gs) * 0.514444 : null, // kts→m/s
           true_track: a.track ? parseFloat(a.track) : null,
           vertical_rate: a.baro_rate ? parseFloat(a.baro_rate) * 0.00508 : null,
           squawk: a.squawk || '---',
           on_ground: a.alt_baro === 'ground',
-          military: true, source: 'adsbx',
-          aircraftType: a.t || '---', registration: a.r || '---',
+          military: true,
+          source: 'adsbx',
+          aircraftType: a.t || '---',
+          registration: a.r || '---',
           route: null,
         }));
+
+      // Merge: add mil aircraft not already in opensky list
       const existingIcaos = new Set(aircraft.map(a => a.icao24));
       milAircraft.forEach(ma => {
-        if (!existingIcaos.has(ma.icao24)) { aircraft.push(ma); }
-        else { const i = aircraft.findIndex(a => a.icao24 === ma.icao24); if (i >= 0) aircraft[i].military = true; }
+        if (!existingIcaos.has(ma.icao24)) {
+          aircraft.push(ma);
+        } else {
+          // Upgrade existing entry to military=true
+          const idx = aircraft.findIndex(a => a.icao24 === ma.icao24);
+          if (idx >= 0) aircraft[idx].military = true;
+        }
       });
       return milAircraft.length;
-    } catch (e) { return 0; }
+    } catch (e) {
+      // ADS-B key missing or CORS — fall back to prefix detection only
+      return 0;
+    }
   }
 
+  // ── AviationStack Route Fetch ────────────────────────────
   async function fetchRoute(callsign) {
     if (!callsign) return null;
     const cs = callsign.trim();
@@ -119,11 +136,23 @@ const Aircraft = (() => {
       if (!flight) return null;
       const route = {
         flightNumber: flight.flight?.iata || cs,
-        airline: flight.airline?.name || '---',
+        airline:      flight.airline?.name || '---',
         aircraftType: flight.aircraft?.iata || '---',
         registration: flight.aircraft?.registration || '---',
-        dep: { iata: flight.departure?.iata || '???', airport: flight.departure?.airport || '---', scheduled: flight.departure?.scheduled || null },
-        arr: { iata: flight.arrival?.iata || '???', airport: flight.arrival?.airport || '---', estimated: flight.arrival?.estimated || null },
+        dep: {
+          iata:      flight.departure?.iata || '???',
+          airport:   flight.departure?.airport || '---',
+          timezone:  flight.departure?.timezone || '---',
+          scheduled: flight.departure?.scheduled || null,
+          actual:    flight.departure?.actual || null,
+        },
+        arr: {
+          iata:      flight.arrival?.iata || '???',
+          airport:   flight.arrival?.airport || '---',
+          timezone:  flight.arrival?.timezone || '---',
+          scheduled: flight.arrival?.scheduled || null,
+          estimated: flight.arrival?.estimated || null,
+        },
         status: flight.flight_status || 'unknown',
       };
       routeCache[cs] = route;
@@ -133,15 +162,17 @@ const Aircraft = (() => {
     } catch (e) { return null; }
   }
 
+  // ── Plane dot texture — small triangle/arrowhead ─────────
   const acDotCache = {};
   function makeAcDot(color, sz = 24) {
     const key = color + sz;
     if (acDotCache[key]) return acDotCache[key];
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = sz;
+    const cv  = document.createElement('canvas');
+    cv.width  = cv.height = sz;
     const ctx = cv.getContext('2d');
     ctx.clearRect(0, 0, sz, sz);
-    const cx = sz / 2;
+    const cx = sz / 2, cy = sz / 2;
+    // Simple filled triangle pointing up — reads as plane at small scale
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(cx, 2);
@@ -158,15 +189,15 @@ const Aircraft = (() => {
   }
 
   function makeAcLabel(cs, lColor) {
-    const cv = document.createElement('canvas');
+    const cv  = document.createElement('canvas');
     const ctx = cv.getContext('2d');
-    const fs = 9;
-    ctx.font = `${fs}px "Share Tech Mono", monospace`;
-    const tw = ctx.measureText(cs).width;
+    const fs  = 9;
+    ctx.font  = `${fs}px "Share Tech Mono", monospace`;
+    const tw  = ctx.measureText(cs).width;
     const pad = 3;
-    cv.width = Math.ceil(tw + pad * 2);
+    cv.width  = Math.ceil(tw + pad * 2);
     cv.height = fs + pad * 2;
-    ctx.font = `${fs}px "Share Tech Mono", monospace`;
+    ctx.font  = `${fs}px "Share Tech Mono", monospace`;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = lColor;
@@ -182,49 +213,74 @@ const Aircraft = (() => {
     return spr;
   }
 
+  // ── Build Meshes ─────────────────────────────────────────
   function buildMeshes(godMode) {
     Globe.airGroup.clear();
-    Globe.labelGroup.children.filter(c => c.userData.airLabel).forEach(c => Globe.labelGroup.remove(c));
-    Globe.bracketGroup.children.filter(c => c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
-    activeBracket = null; airMeshes = []; airLabels = [];
+    Globe.labelGroup.children
+      .filter(c => c.userData.airLabel)
+      .forEach(c => Globe.labelGroup.remove(c));
+    Globe.bracketGroup.children
+      .filter(c => c.userData.airBracket)
+      .forEach(c => Globe.bracketGroup.remove(c));
+    activeBracket = null;
+    airMeshes = [];
+    airLabels = [];
+
     aircraft.forEach((ac, idx) => {
       const lColor = godMode ? '#00ffcc' : ac.military ? '#ff9900' : '#00f5ff';
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeAcDot(lColor, 24), transparent: true, depthTest: false, opacity: 0.9 }));
+      const tex    = makeAcDot(lColor, 24);
+      const mat    = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.9 });
+      const sprite = new THREE.Sprite(mat);
       sprite.scale.setScalar(0.010);
       sprite.userData = { idx, type: 'air', obj: ac };
-      Globe.airGroup.add(sprite); airMeshes.push(sprite);
-      const cs = (ac.callsign || ac.icao24 || 'UNK').substring(0, 8).trim();
-      const alt = ac.baro_altitude || ac.geo_altitude;
-      const fl = alt ? ' FL' + Math.round(alt * 3.28084 / 100) : '';
+      Globe.airGroup.add(sprite);
+      airMeshes.push(sprite);
+
+      const cs    = (ac.callsign || ac.icao24 || 'UNK').substring(0, 8).trim();
+      const alt   = ac.baro_altitude || ac.geo_altitude;
+      const fl    = alt ? ' FL' + Math.round(alt * 3.28084 / 100) : '';
       const label = makeAcLabel(cs + fl, lColor);
-      label.visible = false; label.userData = { idx, airLabel: true };
-      Globe.labelGroup.add(label); airLabels.push(label);
+      label.visible = false;
+      label.userData = { idx, airLabel: true };
+      Globe.labelGroup.add(label);
+      airLabels.push(label);
     });
   }
 
+  // ── Place ─────────────────────────────────────────────────
   function place() {
-    const showLabels = Globe.zoom <= LABEL_ZOOM_THRESHOLD;
+    const showLabels   = Globe.zoom <= LABEL_ZOOM_THRESHOLD;
     const satIsolating = typeof Satellites !== 'undefined' && Satellites.isolateMode;
-    const trackedAirIdx = (typeof UI !== 'undefined' && UI.selectedType === 'air' && UI.selectedIdx !== null) ? UI.selectedIdx : null;
+    const trackedAirIdx = (typeof UI !== 'undefined' && UI.selectedType === 'air' && UI.selectedIdx !== null)
+      ? UI.selectedIdx : null;
+
     aircraft.forEach((ac, idx) => {
       if (ac.lat == null || ac.lon == null) return;
       const alt = (ac.geo_altitude || ac.baro_altitude || 10000) / 1000;
-      const r = 1 + (alt / 6371) * 1.4 + 0.005;
+      const r   = 1 + (alt / 6371) * 1.4 + 0.005;
       const pos = Utils.ll2v3(ac.lat, ac.lon, r);
       if (airMeshes[idx]) airMeshes[idx].position.copy(pos);
       if (airLabels[idx]) {
         airLabels[idx].position.copy(Utils.ll2v3(ac.lat, ac.lon, r + 0.035));
         let labelVis;
-        if (satIsolating) { labelVis = false; }
-        else if (trackedAirIdx !== null) { labelVis = (idx === trackedAirIdx); }
-        else { labelVis = showLabels; }
+        if (satIsolating) {
+          labelVis = false;                             // sat tracked — hide all planes
+        } else if (trackedAirIdx !== null) {
+          labelVis = (idx === trackedAirIdx);           // plane tracked — only show that label
+        } else {
+          labelVis = showLabels;                        // normal — show if zoomed in
+        }
         airLabels[idx].visible = labelVis;
       }
-      if (activeBracket && activeBracket.userData.idx === idx) activeBracket.position.copy(pos);
+      if (activeBracket && activeBracket.userData.idx === idx) {
+        activeBracket.position.copy(pos);
+      }
     });
   }
 
+  // ── Recolor ───────────────────────────────────────────────
   function recolor(godMode) {
+    // Emoji sprites keep their appearance — just adjust opacity in god mode
     aircraft.forEach((ac, idx) => {
       if (!airMeshes[idx]) return;
       airMeshes[idx].material.opacity = godMode ? 0.7 : 0.95;
@@ -232,11 +288,16 @@ const Aircraft = (() => {
     });
   }
 
+  // ── Bracket on selected aircraft ─────────────────────────
   function showBracket(idx, godMode) {
-    Globe.bracketGroup.children.filter(c => c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
+    // Remove old air bracket
+    Globe.bracketGroup.children
+      .filter(c => c.userData.airBracket)
+      .forEach(c => Globe.bracketGroup.remove(c));
     activeBracket = null;
     if (idx === null || !airMeshes[idx]) return;
-    const color = godMode ? 0x00ffcc : aircraft[idx]?.military ? 0xff9900 : 0x00f5ff;
+
+    const color   = godMode ? 0x00ffcc : aircraft[idx]?.military ? 0xff9900 : 0x00f5ff;
     const bracket = Globe.makeBracket(0.045, color);
     bracket.position.copy(airMeshes[idx].position);
     bracket.userData = { idx, airBracket: true };
@@ -245,9 +306,11 @@ const Aircraft = (() => {
     let t = 0;
     const pulse = () => {
       if (!activeBracket || activeBracket.userData.idx !== idx) return;
-      t += 0.04; activeBracket.scale.setScalar(1 + Math.sin(t) * 0.07);
+      t += 0.04;
+      activeBracket.scale.setScalar(1 + Math.sin(t) * 0.07);
       requestAnimationFrame(pulse);
-    }; pulse();
+    };
+    pulse();
   }
 
   return {

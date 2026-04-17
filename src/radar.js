@@ -47,8 +47,16 @@ const Radar = (() => {
   function scan() {
     blips = [];
     if (!userLat || !userLon) return;
+
+    // Deduplicate satellites by NORAD ID — same sat can appear in multiple TLE groups
+    const seenIds = new Set();
+
     Satellites.list.forEach((sat, idx) => {
       if (sat.lat == null || sat.lon == null) return;
+      const noradKey = String(sat.id);
+      if (seenIds.has(noradKey)) return;   // skip duplicates
+      seenIds.add(noradKey);
+
       const dist = haversine(userLat, userLon, sat.lat, sat.lon);
       if (dist <= currentRangeKm) {
         blips.push({
@@ -61,8 +69,15 @@ const Radar = (() => {
         });
       }
     });
+
+    // Deduplicate aircraft by ICAO24
+    const seenIcao = new Set();
     Aircraft.list.forEach((ac, idx) => {
       if (ac.lat == null || ac.lon == null) return;
+      const icaoKey = ac.icao24 || String(idx);
+      if (seenIcao.has(icaoKey)) return;
+      seenIcao.add(icaoKey);
+
       const dist = haversine(userLat, userLon, ac.lat, ac.lon);
       if (dist <= currentRangeKm) {
         blips.push({
@@ -79,6 +94,7 @@ const Radar = (() => {
         });
       }
     });
+
     blips.sort((a, b) => a.dist - b.dist);
     blips = blips.slice(0, CONFIG.radar.maxBlips);
     lastScan = Date.now();
@@ -313,9 +329,13 @@ const Radar = (() => {
         const size = Math.min(window.innerHeight * 0.7, 520);
         radarCanvas.width  = size;
         radarCanvas.height = size;
+        // Re-scan to make sure blips are fresh
+        scan();
         if (active) startLoop(UI.godMode);
-        // Render list after another tick so #radar-list is in DOM
-        setTimeout(() => renderBlipList(UI.godMode), 100);
+        // Render list with multiple attempts to ensure DOM is ready
+        setTimeout(() => renderBlipList(UI.godMode), 50);
+        setTimeout(() => renderBlipList(UI.godMode), 300);
+        setTimeout(() => renderBlipList(UI.godMode), 800);
       }
     });
   }

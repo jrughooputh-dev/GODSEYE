@@ -117,6 +117,17 @@ const Satellites = (() => {
       )
     );
     results.forEach(r => { if (r.status === 'fulfilled') allSats = allSats.concat(r.value); });
+
+    // Deduplicate by NORAD ID — same satellite can appear in multiple TLE groups
+    // (e.g. ISS appears in 'stations' AND 'active' groups)
+    const seenIds = new Set();
+    allSats = allSats.filter(s => {
+      const key = String(s.id);
+      if (seenIds.has(key)) return false;
+      seenIds.add(key);
+      return true;
+    });
+
     if (allSats.length < 5) {
       allSats = parseTLEs(CONFIG.fallbackTLE, 'other');
       allSats.forEach(s => {
@@ -194,62 +205,125 @@ const Satellites = (() => {
     tex.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     const spr = new THREE.Sprite(mat);
-    const h = 0.038;
+    const h = 0.012;
     spr.scale.set((cv.width / cv.height) * h, h, 1);
     return spr;
   }
 
-  // ── Build Meshes ────────────────────────────────────────
+  // ── Points geometry — ONE draw call for ALL satellites ──
+  // 25k sprites = 25k draw calls = 3 FPS
+  // 1 Points object = 1 draw call = 60 FPS
+  let pointsGeo   = null;
+  let pointsMesh  = null;
+  let pointsPositions = null;  // Float32Array, 3 floats per sat
+  let pointsColors    = null;  // Float32Array, 3 floats per sat
+  let pointsVisible   = null;  // Uint8Array, 1 byte per sat (0=hide, 1=show)
+
+  // Category colors as RGB 0-1
+  const CAT_RGB = {
+    iss:      [1.0,  0.72, 0.0],   // amber
+    starlink: [0.0,  0.96, 1.0],   // cyan
+    weather:  [0.53, 1.0,  0.8],   // mint
+    nav:      [1.0,  0.8,  0.53],  // gold
+    science:  [0.8,  0.53, 1.0],   // violet
+    iridium:  [0.67, 0.67, 1.0],   // blue
+    debris:   [0.33, 0.33, 0.47],  // grey
+    other:    [0.0,  1.0,  0.53],  // green
+  };
+  const GOD_RGB = [0.0, 1.0, 0.8]; // teal in god mode
+
+  function catRGB(cat, god) {
+    if (god) return GOD_RGB;
+    return CAT_RGB[cat] || CAT_RGB.other;
+  }
+
+  // ── Build Meshes — Points + label sprites ───────────────
   function buildMeshes(godMode) {
     Globe.satGroup.clear();
     Globe.labelGroup.children.filter(c => c.userData.satLabel).forEach(c => Globe.labelGroup.remove(c));
     Globe.bracketGroup.children.filter(c => !c.userData.airBracket).forEach(c => Globe.bracketGroup.remove(c));
     activeBracket = null;
-    satMeshes = [];
+    satMeshes = [];   // kept for raycasting — we'll use invisible tiny sprites
     satLabels = [];
 
+    const n = satellites.length;
+    pointsPositions = new Float32Array(n * 3);
+    pointsColors    = new Float32Array(n * 3);
+    pointsVisible   = new Uint8Array(n).fill(1);
+
+    pointsGeo = new THREE.BufferGeometry();
+    pointsGeo.setAttribute('position', new THREE.BufferAttribute(pointsPositions, 3));
+    pointsGeo.setAttribute('color',    new THREE.BufferAttribute(pointsColors,    3));
+
+    const pointsMat = new THREE.PointsMaterial({
+      size: 3.5,              // screen pixels
+      sizeAttenuation: false, // constant screen size regardless of distance
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+    });
+    pointsMesh = new THREE.Points(pointsGeo, pointsMat);
+    Globe.satGroup.add(pointsMesh);
+
+    // Invisible tiny hit-test sprites for raycasting (1 per sat, 0 size effectively)
+    // We only need these for click detection — too small to see
     satellites.forEach((sat, idx) => {
-      const isISS = sat.cat === 'iss';
-      // Color by category — matching reference green/yellow dot palette
-      const colStr = dotColorStr(sat.cat, godMode);
-      const dotSz  = isISS ? 32 : sat.cat === 'debris' ? 16 : 24;
-      const tex    = makeCrossTex(colStr, dotSz);
-      const mat    = new THREE.SpriteMaterial({
-        map: tex, transparent: true, depthTest: false,
-        opacity: sat.cat === 'debris' ? 0.3 : isISS ? 1.0 : 0.85,
-      });
-      const sprite = new THREE.Sprite(mat);
-      // World-space scale — ISS slightly larger, debris tiny
-      const scale  = isISS ? 0.014 : sat.cat === 'debris' ? 0.004 : 0.007;
-      sprite.scale.setScalar(scale);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0 }));
+      sprite.scale.setScalar(0.015);
       sprite.userData = { idx, type: 'sat', obj: sat };
       Globe.satGroup.add(sprite);
       satMeshes.push(sprite);
 
-      // Text label — shown only when zoomed in
-      const labelText = isISS ? 'ISS' : sat.name.length <= 16 ? sat.name : `SAT-${sat.id}`;
+      // Init colors
+      const rgb = catRGB(sat.cat, godMode);
+      pointsColors[idx * 3]     = rgb[0];
+      pointsColors[idx * 3 + 1] = rgb[1];
+      pointsColors[idx * 3 + 2] = rgb[2];
+
+      // Label sprite — only ISS gets label always; others only on close zoom
+      const labelText = sat.cat === 'iss' ? 'ISS' : sat.name.length <= 16 ? sat.name : `SAT-${sat.id}`;
       const lc    = labelColor(sat.cat, godMode);
-      const label = makeSatLabelTex(labelText, lc, isISS ? 10 : 8);
+      const label = makeSatLabelTex(labelText, lc, sat.cat === 'iss' ? 10 : 8);
       label.visible = false;
       label.userData = { idx, satLabel: true };
       Globe.labelGroup.add(label);
       satLabels.push(label);
     });
 
+    pointsGeo.attributes.color.needsUpdate = true;
     applyCatFilter();
   }
 
   // ── Apply category + isolate filter ────────────────────
   function applyCatFilter() {
+    if (!pointsGeo) return;
     const showLabels = Globe.zoom <= LABEL_ZOOM_THRESHOLD;
+
     satellites.forEach((sat, idx) => {
       const catVis = catFilter[sat.cat] !== false;
-      // In isolate mode, only show the selected sat
       const isoVis = !isolateMode || idx === selectedIdx;
-      const vis    = catVis && isoVis;
-      if (satMeshes[idx]) satMeshes[idx].visible = vis;
-      if (satLabels[idx]) satLabels[idx].visible  = vis && showLabels;
+      const vis    = catVis && isoVis ? 1 : 0;
+      pointsVisible[idx] = vis;
+
+      // Update color alpha by zeroing invisible sat colors
+      const rgb = catRGB(sat.cat, false);
+      const bright = idx === selectedIdx ? 1.5 : 1.0;
+      pointsColors[idx * 3]     = vis ? Math.min(1, rgb[0] * bright) : 0;
+      pointsColors[idx * 3 + 1] = vis ? Math.min(1, rgb[1] * bright) : 0;
+      pointsColors[idx * 3 + 2] = vis ? Math.min(1, rgb[2] * bright) : 0;
+
+      // Hit sprite — same vis
+      if (satMeshes[idx]) satMeshes[idx].visible = !!vis;
+
+      if (satLabels[idx]) {
+        satLabels[idx].visible = isolateMode
+          ? idx === selectedIdx
+          : (!!vis && showLabels);
+      }
     });
+
+    pointsGeo.attributes.color.needsUpdate = true;
   }
 
   function setCatFilter(cat, val) {
@@ -259,9 +333,9 @@ const Satellites = (() => {
 
   // ── Propagate positions ─────────────────────────────────
   function propagate(godMode) {
+    if (!pointsGeo) return;
     const now        = new Date();
     const showLabels = Globe.zoom <= LABEL_ZOOM_THRESHOLD;
-    // Scale label size with zoom — bigger labels when zoomed in more
     const labelScale = Math.max(0.6, Math.min(1.4, 2.3 / Math.max(Globe.zoom, 0.5)));
 
     satellites.forEach((sat, idx) => {
@@ -279,16 +353,22 @@ const Satellites = (() => {
         const r   = 1 + (sat.alt / 6371) * 1.4;
         const pos = Utils.ll2v3(sat.lat, sat.lon, r);
 
+        // Update Points buffer directly — no per-object overhead
+        pointsPositions[idx * 3]     = pos.x;
+        pointsPositions[idx * 3 + 1] = pos.y;
+        pointsPositions[idx * 3 + 2] = pos.z;
+
+        // Update invisible hit sprite position for raycasting
         if (satMeshes[idx]) satMeshes[idx].position.copy(pos);
 
+        // Label
         if (satLabels[idx]) {
           satLabels[idx].position.copy(Utils.ll2v3(sat.lat, sat.lon, r + 0.035));
-          const catVis = catFilter[sat.cat] !== false;
-          const isoVis = !isolateMode || idx === selectedIdx;
-          satLabels[idx].visible = catVis && isoVis && showLabels;
-          // Scale labels with zoom
-          if (showLabels) {
-            const base = sat.cat === 'iss' ? 0.055 : 0.04;
+          satLabels[idx].visible = isolateMode
+            ? idx === selectedIdx
+            : (catFilter[sat.cat] !== false && showLabels);
+          if (satLabels[idx].visible) {
+            const base = sat.cat === 'iss' ? 0.018 : 0.012;
             satLabels[idx].scale.setScalar(base * labelScale);
           }
         }
@@ -303,17 +383,24 @@ const Satellites = (() => {
         if (trailHist[idx].length > CONFIG.maxTrailPoints) trailHist[idx].shift();
       } catch (e) {}
     });
+
+    // Single buffer update for all positions — one GPU upload
+    pointsGeo.attributes.position.needsUpdate = true;
   }
 
-  // ── Recolor (no rebuild) ───────────────────────────────
+  // ── Recolor — update Points buffer colors ──────────────
   function recolor(godMode) {
-    // Emoji sprites don't change color — just opacity for debris in god mode
-    // In god mode all emojis stay the same (🛰️/📡) — no swap needed
+    if (!pointsGeo) return;
     satellites.forEach((sat, idx) => {
-      if (!satMeshes[idx]) return;
-      satMeshes[idx].material.opacity = sat.cat === 'debris' ? 0.25 : (godMode ? 0.7 : 1.0);
-      satMeshes[idx].material.needsUpdate = true;
+      const rgb = catRGB(sat.cat, godMode);
+      const vis = pointsVisible[idx];
+      pointsColors[idx * 3]     = vis ? rgb[0] : 0;
+      pointsColors[idx * 3 + 1] = vis ? rgb[1] : 0;
+      pointsColors[idx * 3 + 2] = vis ? rgb[2] : 0;
     });
+    pointsGeo.attributes.color.needsUpdate = true;
+    // Update Points material opacity for god mode
+    if (pointsMesh) pointsMesh.material.opacity = godMode ? 0.7 : 0.9;
   }
 
   // ── Trail ──────────────────────────────────────────────
@@ -361,7 +448,7 @@ const Satellites = (() => {
       if (!satMeshes[i]) return;
       const s = satellites[i];
       satMeshes[i].scale.setScalar(
-        s.cat === 'iss' ? 0.014 : s.cat === 'debris' ? 0.004 : 0.007
+        s.cat === 'iss' ? 0.022 : s.cat === 'debris' ? 0.004 : 0.009
       );
     });
 
@@ -375,10 +462,13 @@ const Satellites = (() => {
       return;
     }
 
-    // Enlarge selected cross marker slightly
-    if (satMeshes[idx]) {
-      const base = satellites[idx].cat === 'iss' ? 0.014 : 0.007;
-      satMeshes[idx].scale.setScalar(base * 2.0);
+    // Highlight selected point — make it bright white/yellow
+    if (pointsGeo) {
+      const rgb = catRGB(satellites[idx].cat, false);
+      pointsColors[idx * 3]     = Math.min(1, rgb[0] * 2);
+      pointsColors[idx * 3 + 1] = Math.min(1, rgb[1] * 2);
+      pointsColors[idx * 3 + 2] = Math.min(1, rgb[2] * 2);
+      pointsGeo.attributes.color.needsUpdate = true;
     }
 
     // Isolate: hide all others
@@ -410,6 +500,25 @@ const Satellites = (() => {
     selectedIdx = null;
   }
 
+  // ── Isolate single satellite — zero all others in Points ─
+  function isolateSingle(idx) {
+    if (!pointsGeo) return;
+    satellites.forEach((sat, i) => {
+      if (i === idx) {
+        // Bright white for selected
+        pointsColors[i * 3]     = 1.0;
+        pointsColors[i * 3 + 1] = 1.0;
+        pointsColors[i * 3 + 2] = 0.8;
+      } else {
+        // Zero = invisible in Points
+        pointsColors[i * 3]     = 0;
+        pointsColors[i * 3 + 1] = 0;
+        pointsColors[i * 3 + 2] = 0;
+      }
+    });
+    pointsGeo.attributes.color.needsUpdate = true;
+  }
+
   // ── Threat counts ──────────────────────────────────────
   function getThreatCounts() {
     let leo = 0, meo = 0, geo = 0;
@@ -433,6 +542,7 @@ const Satellites = (() => {
     parseTLEs, fetchAll, fetchISSData, getISSIndex,
     buildMeshes, propagate, recolor, drawTrail, showBracket,
     getThreatCounts, select, deselect, applyCatFilter, setCatFilter,
+    isolateSingle,
     catColor, catLabel, catClass, catIcon, catMeta,
     get LABEL_ZOOM_THRESHOLD() { return LABEL_ZOOM_THRESHOLD; },
   };

@@ -448,7 +448,9 @@ const UI = (() => {
     Aircraft.showBracket(null, godMode);
     Globe.bracketGroup.clear();
     Globe.trailGroup.clear();
-    Globe.autoRot = false;
+    Globe.autoRot = true;
+    // Reset zoom back to default when untracking
+    Globe.zoom = 3.6;
     // Reset right panel
     document.getElementById('dname').innerHTML = '<span style="color:var(--cd);font-size:9px;letter-spacing:2px;opacity:.5">AWAITING TARGET LOCK</span>';
     document.getElementById('dbody').innerHTML = '<div class="nosel">&gt; SELECT OBJECT FROM LIST<br>&gt; OR CLICK ICON ON GLOBE<br>&gt; DRAG TO ROTATE · SCROLL TO ZOOM<br>&gt; <kbd style="border:1px solid var(--bo);padding:1px 5px;font-size:8px">ESC</kbd> TO UNTRACK</div>';
