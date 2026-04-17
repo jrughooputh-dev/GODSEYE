@@ -315,8 +315,16 @@ function resetGlobe() {
 const SceneState = (() => {
   function isolate(type, idx) {
     // Hide EVERYTHING except the tracked object
-    Globe.satGroup.visible    = type === 'sat';
-    Globe.airGroup.visible    = type === 'air';
+    // For satellites — use Points color zeroing rather than group hide
+    if (type === 'sat') {
+      // Keep satGroup visible but zero out all colors except tracked
+      Globe.satGroup.visible = true;
+      Globe.airGroup.visible = false;
+      Satellites.isolateSingle(idx);
+    } else {
+      Globe.satGroup.visible = false;
+      Globe.airGroup.visible = true;
+    }
     if (Globe.geoGrid)    Globe.geoGrid.visible    = false;
     if (Globe.flagGroup)  Globe.flagGroup.visible  = false;
     if (Globe.cloudsMesh) Globe.cloudsMesh.visible = false;
@@ -333,7 +341,6 @@ const SceneState = (() => {
     if (Globe.geoGrid)    Globe.geoGrid.visible    = true;
     if (Globe.flagGroup)  Globe.flagGroup.visible  = true;
     if (Globe.cloudsMesh) Globe.cloudsMesh.visible = true;
-    // Labels restored by applyCatFilter based on zoom
     Satellites.applyCatFilter();
   }
 
@@ -430,12 +437,12 @@ function animate() {
 
   if (Globe.frame % CONFIG.satUpdateFrames === 0) {
     Satellites.propagate(UI.godMode);
+    Aircraft.place();   // always update aircraft positions and label visibility
     tick();
     if (UI.selectedType === 'sat' && UI.selectedIdx !== null) {
       UI.updateDetail();
       Satellites.drawTrail(UI.selectedIdx, UI.godMode);
     }
-    if (UI.selectedType === 'air' && UI.selectedIdx !== null) Aircraft.place();
     if (UI.godMode) { UI.updateThreatCounts(); UI.renderGodDashboard(); }
   }
 }
